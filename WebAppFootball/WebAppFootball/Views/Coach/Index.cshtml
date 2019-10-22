@@ -1,0 +1,51 @@
+﻿@model List<Coach>
+@{
+    ViewData["Title"] = "Index";
+}
+<script src="~/js/bootstrap.js"></script>
+<link href="~/css/all.css" rel="stylesheet" />
+<script src="~/js/jquery-3.4.1.min.js"></script>
+<link href="~/css/bootstrap.css" rel="stylesheet" />
+<div class="container-fluid">
+    <form action="/coach/Search">
+        <input type="text" name="q" value="" />
+        <button>Search</button>
+    </form>
+    <a href="/coach/CreateCoach">Create Coach</a>
+    <h2>Index</h2>
+    @*post=> day du lieu di, action="/coach/all=> chuyen du lieu tu view sang controller"*@
+    <form action="/coach/all" menthod="post">
+        <table class="table table-bordered">
+            <tr>
+                <th>
+                    <button class="btn btn-info">Delete</button>
+                </th>
+                <th>Fullname</th>
+                <th>YearOfBirth</th>
+                <th>Nationality</th>
+            </tr>
+            @foreach (var item in Model)
+            {
+                <tr>
+                    <td>
+                        <input type="checkbox" name="d" value="@item.Id" />
+                    </td>
+                    <td>@item.FullName</td>
+                    <td>@item.YearOfBirth</td>
+                    <td>@item.Nationality</td>
+                    <td>
+                        <a href="/Coach/Edit/@item.Id"><i class="fas fa-edit"></i></a>
+                    </td>
+                    <td>
+                        <a href="/Coach/DeleteCoach/@item.Id" class="del"><i class="fas fa-trash"></i></a>
+                    </td>
+                </tr>
+            }
+        </table>
+    </form>
+</div>
+<script type="text/javascript">
+    $('.del').click(function () {
+        return confirm("Are you sure for delete?");
+    });
+</script>

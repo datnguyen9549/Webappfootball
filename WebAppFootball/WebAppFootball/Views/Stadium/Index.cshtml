@@ -1,0 +1,29 @@
+﻿@model List<Stadium>
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+<a href="/stadium/create">Create</a>
+<table class="table table-bordered">
+    <tr>
+        <td>ID</td>
+        <td>Name</td>
+        <td>City</td>
+        <td>Year of Beginnign</td>
+        <td>Delete</td>
+    </tr>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Id</td>
+            <td>@item.Name</td>
+            <td>@item.City</td>
+            <td>@item.YearOfBeginning</td>
+            <td>
+                <a href="/stadium/delete/@item.Id"><i class="fas fa-trash fa-4x"></i></a>
+            </td>
+        </tr>
+    }
+</table>
+

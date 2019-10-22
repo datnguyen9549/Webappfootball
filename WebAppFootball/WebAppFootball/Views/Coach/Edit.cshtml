@@ -1,0 +1,26 @@
+﻿@model Coach
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>EditCoach</h1>
+<form method="post">
+    @*hidden=>khong thay doi id, @Model.ID=> su dung lam dieu kien cho cau truy van *@
+    <input type="hidden" name="id" value="@Model.Id"/>
+    <div>
+        <label>Fullname</label>
+        <div><input type="text" name="Fullname" value="@Model.FullName" /></div>
+    </div>
+    <div>
+        <label>Nationality</label>
+        <div><input type="text" name="Nationality" value="@Model.Nationality" /></div>
+    </div>
+    <div>
+        <label>Year of birth</label>
+        <div><input type="number" name="yearofbirth" value="@Model.YearOfBirth" /></div>
+    </div>
+    <div>
+        <button>Save</button>
+    </div>
+</form>
+

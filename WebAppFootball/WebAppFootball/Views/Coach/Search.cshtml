@@ -1,0 +1,28 @@
+﻿@model List<Coach>
+@{
+    ViewData["Title"] = "Serach";
+}
+
+<h1>Seach</h1>
+
+<table class="table table-bordered">
+    <tr>
+        <th>Fullname</th>
+        <th>YearOfBirth</th>
+        <th>Nationality</th>
+    </tr>
+    @foreach (var item in Model)
+            {
+    <tr>
+        <td>@item.FullName</td>
+        <td>@item.YearOfBirth</td>
+        <td>@item.Nationality</td>
+        <td>
+            <a href="/Coach/Edit/@item.Id"><i class="fas fa-edit"></i></a>
+        </td>
+        <td>
+            <a href="/Coach/DeleteCoach/@item.Id" class="del"><i class="fas fa-trash"></i></a>
+        </td>
+    </tr>
+            }
+</table>

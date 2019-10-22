@@ -1,0 +1,62 @@
+﻿@model List<Club>
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+<div>
+    <a href="/club/create" class="btn btn-info">Add Club</a>
+</div>
+
+<form method="post" action="/club/search">
+    <label>Coach</label>
+    <select name="coach">
+        <option value="">All</option>
+        @foreach (Coach item in ViewBag.coaches)
+        {
+            <option value="@item.Id">@item.FullName</option>
+        }
+    </select>
+    <label>Stadium</label>
+    <select name="stadium">
+        <option value="">All</option>
+        @foreach (Stadium item in ViewBag.stadiums)
+        {
+            <option value="@item.Id">@item.Name</option>
+        }
+    </select>
+    <label>Name</label>
+    <input type="text" name="name" value="" placeholder="Club name"/>
+    <label>Short Name</label>
+    <input type="text" name="shortname" value="" placeholder="Short name"/>
+    <button class="btn btn-info">Search</button>
+</form>
+
+<table class="table table-bordered">
+    <tr>
+        <td>Id</td>
+        <td>Name</td>
+        <td>Coach</td>
+        <td>Stadium</td>
+        <td>ImageUrl</td>
+        <td>Edit</td>
+    </tr>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Id</td>
+            <td>@item.Name</td>
+            <td>@item.FullName</td>
+            <td>@item.StadiumName</td>
+            <td>
+                @if (!string.IsNullOrEmpty(@item.LogoUrl))
+                {
+                    <img src="~/images/@item.LogoUrl" width="100"/>
+                }
+            </td>
+            <td>
+                <a href="/club/edit/@item.Id"><i class="fas fa-edit fa-4x"></i></a>
+            </td>
+        </tr>
+    }
+</table>

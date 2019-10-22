@@ -1,0 +1,12 @@
+﻿
+@{
+    ViewData["Title"] = "Index";
+}
+
+<h1>Index</h1>
+@*Su dung enctype="multipart/form-data" de upload toan bo noi dung file da dc encode.*@
+@*Defalut la dang enctype="application/x-www-form-urlencoded"*@
+<form method="post" enctype="multipart/form-data">
+    <input type="file" name="f" />
+    <button>Save</button>
+</form>
