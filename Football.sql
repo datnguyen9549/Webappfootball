@@ -11220,6 +11220,12 @@ CREATE TABLE Player (
   Number TINYINT NOT NULL
 );
 GO
+
+-- Thu tuc get player
+create proc GetPlayers
+as
+	select * from Player;
+go
 --
 -- Dumping data for table Player
 --
@@ -11832,3 +11838,23 @@ go
 exec EditClub @Id=20,@Name=N'Queens Park Rangers1111',@ShortName=N'QPR',@StadiumId=32,@CoachId=2,@LogoUrl=default
 
 select * from Club;
+-- Tao mot thu tuc search clubs, input co the null or not null 
+alter proc SearchClubs
+(
+	@Clubname nvarchar(64) = NULL,
+	@ShortName nvarchar(32) = null,
+	@StadiumId int = null,
+	@CoachId int = null
+)
+as
+begin
+	select * from Club join Coach on Club.CoachId = Coach.CoachId
+						join Stadium on Club.StadiumId = Stadium.StadiumId
+	where 
+		(@StadiumId is NULL or Stadium.StadiumId = @StadiumId) and
+		(@ShortName is null or ShortName = @ShortName) and
+		(@CoachId is null or Coach.CoachId = @CoachId) and
+		(@Clubname is null or ClubName like '%' + @Clubname + '%')		 
+end
+go
+exec SearchClubs @Clubname=default,@ShortName=default,@StadiumId=default,@CoachId=2

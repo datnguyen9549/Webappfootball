@@ -8,9 +8,9 @@
     <a href="/club/create" class="btn btn-info">Add Club</a>
 </div>
 
-<form method="post" action="/club/search">
+<form method="get" action="/club/search">
     <label>Coach</label>
-    <select name="coach">
+    <select name="CoachId">
         <option value="">All</option>
         @foreach (Coach item in ViewBag.coaches)
         {
@@ -18,7 +18,7 @@
         }
     </select>
     <label>Stadium</label>
-    <select name="stadium">
+    <select name="stadiumid">
         <option value="">All</option>
         @foreach (Stadium item in ViewBag.stadiums)
         {
@@ -26,7 +26,7 @@
         }
     </select>
     <label>Name</label>
-    <input type="text" name="name" value="" placeholder="Club name"/>
+    <input type="text" name="ClubName" value="" placeholder="Club name"/>
     <label>Short Name</label>
     <input type="text" name="shortname" value="" placeholder="Short name"/>
     <button class="btn btn-info">Search</button>

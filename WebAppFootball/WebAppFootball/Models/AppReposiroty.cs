@@ -6,6 +6,18 @@
         ClubRepository club;
         CoachRepository coach;
         StadiumRepository stadium;
+        PlayerRepository player;
+        public PlayerRepository Player
+        {
+            get
+            {
+                if(player is null)
+                {
+                    player = new PlayerRepository();
+                }
+                return player;
+            }
+        }
         // properties
         public ClubRepository Club
         {

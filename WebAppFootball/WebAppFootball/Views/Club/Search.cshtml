@@ -1,0 +1,82 @@
+﻿@model List<Club>
+@{
+    ViewData["Title"] = "Search";
+}
+@*This form will continue search information like index controller page*@
+<h1>Search</h1>
+<form method="get" action="/club/search" name="f">
+    <label>Coach</label>
+    <select name="coachid">
+        <option value="">All</option>
+        @foreach (Coach item in ViewBag.coaches)
+        {
+            <option value="@item.Id">@item.FullName</option>
+        }
+    </select>
+    <label>Stadium</label>
+    <select name="stadiumid">
+        <option value="">All</option>
+        @foreach (Stadium item in ViewBag.stadiums)
+        {
+            <option value="@item.Id">@item.Name</option>
+        }
+    </select>
+    <label>Name</label>
+    <input type="text" name="clubName" value="@Context.Request.Query["clubName"]" placeholder="Club name" />
+    <label>Short Name</label>
+    <input type="text" name="shortname" value="@Context.Request.Query["shortname"]" placeholder="Short name" />
+    <button class="btn btn-info">Search</button>
+</form>
+<table class="table table-bordered">
+    <tr>
+        <td>Name</td>
+        <td>Short Name</td>
+        <td>Coach </td>
+        <td>Stadium</td>
+        <td>Logo</td>
+    </tr>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@item.Name</td>
+            <td>@item.ShortName</td>
+            <td>@item.FullName</td>
+            <td>@item.StadiumName</td>
+            <td>@item.LogoUrl</td>
+        </tr>
+    }
+</table>
+@*Hold value after search in input form*@
+@*Note: "coachid and stadium variable will be the same with name of form (select tag)"*@
+@if (!String.IsNullOrEmpty(Context.Request.Query["coachid"]))
+{
+    <script type="text/javascript">
+        $(f["coachid"]).val(@Context.Request.Query["coachid"]);
+    </script>
+}
+@if (!String.IsNullOrEmpty(Context.Request.Query["stadiumid"]))
+{
+    <script type="text/javascript">
+        $(f["stadiumid"]).val(@Context.Request.Query["stadiumid"]);
+    </script>
+}
+@*Code javascript
+    funtionalyties: luc search chi gui di thong tin cua bien dc tim.
+    ex: search by coachid, URl: https://localhost:44317/club/search?coachid=3
+*@
+<script type="text/javascript">
+    $(f).submit(function (ev) {
+        ev.preventDefault();
+        var q = new Array;
+        var key = ["coachid", "stadiumid", "clubName", "shortname"];
+        for (var i = 0; i < key.length; i++) {
+            if ($(f[key[i]]).val() != '') {
+                q.push(key[i] + "=" + $(f[key[i]]).val());
+            }
+        }
+        if (q.length > 0) {
+            url = q.join("&");
+            window.location = "/club/search?" + url;
+        }
+    });
+</script>

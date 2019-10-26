@@ -9,6 +9,55 @@ namespace WebAppFootball.Models
 {
     public class ClubRepository:BaseRepository
     {
+
+        //Menthod to read information of CLUB object from DB
+        // Input IDbCommand and return Club object.
+        static List<Club> Fetchall(IDbCommand command)
+        {
+            using (IDataReader reader = command.ExecuteReader())
+            {
+                List<Club> clubs = new List<Club>();
+                while (reader.Read())
+                {
+                    Club club = new Club
+                    {
+                        Name = (string)reader["ClubName"],
+                        ShortName = (string)reader["ShortName"],
+                        CoachId = (int)reader["CoachId"],
+                        StadiumId = (int)reader["StadiumId"],
+                        FullName = (string)reader["Fullname"],
+                        StadiumName = (string)reader["StadiumName"],
+                        LogoUrl = reader["LogoUrl"] != DBNull.Value ? (string)reader["LogoUrl"] : null
+                    };
+                    clubs.Add(club);
+                }
+                return clubs;
+            }
+        }
+
+        // Tao menthod search clubs, goi "SearchClubs" procedure tu sql
+        public List<Club> SearchClubs(SearchClub obj)
+        {
+            using(IDbConnection connection = new SqlConnection(connectionString))
+            {
+                using(IDbCommand command = connection.CreateCommand())
+                {
+                    command.CommandType = CommandType.StoredProcedure;
+                    command.CommandText = "SearchClubs";
+                    Parameter[] parameter =
+                    {
+                        new Parameter{Name="@Clubname",Value=obj.ClubName,DbType=DbType.String},
+                        new Parameter{Name="@ShortName",Value=obj.ShortName,DbType=DbType.String},
+                        new Parameter{Name="@StadiumId",Value=obj.StadiumId,DbType=DbType.Int32},
+                        new Parameter{Name="@CoachId",Value=obj.CoachId,DbType=DbType.Int32},
+                    };
+                    SetParameters(command, parameter);
+                    connection.Open();
+                    return Fetchall(command);
+                }
+            }
+        }
+
         public int Edit(Club obj)
         {
             Parameter[] parameters = {
@@ -72,26 +121,27 @@ namespace WebAppFootball.Models
                     command.CommandText = "GetClubs";
                     command.CommandType = CommandType.StoredProcedure;
                     connection.Open();
-                    using(IDataReader reader = command.ExecuteReader())
-                    {
-                        List<Club> clubs = new List<Club>();
-                        while (reader.Read())
-                        {
-                            Club obj = new Club
-                            {
-                                CoachId = (int)reader["CoachId"],
-                                Id = (int)reader["ClubId"],
-                                LogoUrl = reader["LogoUrl"] != DBNull.Value? (string)reader["LogoUrl"]:null,
-                                Name = (string)reader["ClubName"],
-                                ShortName = (string)reader["ShortName"],
-                                StadiumId = (int)reader["StadiumId"],
-                                FullName = (string)reader["FullName"],
-                                StadiumName = (string)reader["StadiumName"]
-                            };
-                            clubs.Add(obj);
-                        }
-                        return clubs;
-                    }
+                    return Fetchall(command);
+                    //using(IDataReader reader = command.ExecuteReader())
+                    //{
+                    //    List<Club> clubs = new List<Club>();
+                    //    while (reader.Read())
+                    //    {
+                    //        Club obj = new Club
+                    //        {
+                    //            CoachId = (int)reader["CoachId"],
+                    //            Id = (int)reader["ClubId"],
+                    //            LogoUrl = reader["LogoUrl"] != DBNull.Value? (string)reader["LogoUrl"]:null,
+                    //            Name = (string)reader["ClubName"],
+                    //            ShortName = (string)reader["ShortName"],
+                    //            StadiumId = (int)reader["StadiumId"],
+                    //            FullName = (string)reader["FullName"],
+                    //            StadiumName = (string)reader["StadiumName"]
+                    //        };
+                    //        clubs.Add(obj);
+                    //    }
+                    //    return clubs;
+                    //}
                 }
             }
         }

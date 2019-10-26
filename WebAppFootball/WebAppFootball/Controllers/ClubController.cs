@@ -18,6 +18,16 @@ namespace WebAppFootball.Controllers
             ViewBag.stadiums = app.Stadium.GetStadium();
             return View(app.Club.GetClubs());
         }
+
+        // Tao mot view Search
+        // Input SearchClub object
+        // return ve view, ket qua search cua menthod SearchClubs
+        public IActionResult Search(SearchClub obj)
+        {
+            ViewBag.coaches = app.Coach.GetCoaches();
+            ViewBag.stadiums = app.Stadium.GetStadium();
+            return View(app.Club.SearchClubs(obj));
+        }
         public IActionResult Create()
         {
             //su dung ViewBag khi muon them nhieu data vao view.
