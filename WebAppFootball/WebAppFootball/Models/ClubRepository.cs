@@ -21,6 +21,7 @@ namespace WebAppFootball.Models
                 {
                     Club club = new Club
                     {
+                        Id = (int)reader["ClubId"],
                         Name = (string)reader["ClubName"],
                         ShortName = (string)reader["ShortName"],
                         CoachId = (int)reader["CoachId"],
