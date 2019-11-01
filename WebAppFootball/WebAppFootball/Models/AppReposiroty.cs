@@ -7,6 +7,31 @@
         CoachRepository coach;
         StadiumRepository stadium;
         PlayerRepository player;
+        PositionRepository position;
+        CountryRepository country;
+        MatchRepository match;
+        public PositionRepository Position
+        {
+            get
+            {
+                if(position is null)
+                {
+                    position = new PositionRepository();
+                }
+                return position;
+            }
+        }
+        public CountryRepository Country
+        {
+            get
+            {
+                if (country is null)
+                {
+                    country = new CountryRepository();
+                }
+                return country;
+            }
+        }
         public PlayerRepository Player
         {
             get
@@ -50,6 +75,17 @@
                     stadium = new StadiumRepository();
                 }
                 return stadium;
+            }
+        }
+        public MatchRepository Match
+        {
+            get
+            {
+                if(match is null)
+                {
+                    match = new MatchRepository();
+                }
+                return match;
             }
         }
     }

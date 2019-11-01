@@ -1,0 +1,50 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model Player
+@{
+    ViewData["Title"] = "Create";
+}
+
+<h1>Create</h1>
+<form method="post">
+    <div>
+        <label asp-for="Fullname"></label>
+        <div>
+            <input type="text" asp-for="Fullname" />
+        </div>
+    </div>
+    <div>
+        <label asp-for="Number"></label>
+        <div>
+            <input type="text" asp-for="Number" />
+        </div>
+    </div>
+    <div>
+        <label asp-for="DOB"></label>
+        <div>
+            <input type="date" asp-for="DOB" />
+        </div>
+    </div>
+    <div>
+        <label asp-for="ClubName"></label>
+        <div>
+            <select asp-for="ClubId" asp-items="@ViewBag.Clubs"></select>
+        </div>
+    </div>
+    <div>
+        <label asp-for="Nationality"></label>
+        <div>
+            @*asp-items need a list of countries*@
+            <select asp-for="Nationality" asp-items="@ViewBag.Countries"></select>
+        </div>
+    </div>
+    <div>
+        <label asp-for="PositionId"></label>
+        <div>
+            <select asp-for="PositionId" asp-items="@ViewBag.Positions"></select>
+        </div>
+    </div>
+    <div>
+        <button>Save</button>
+    </div>
+</form>
+

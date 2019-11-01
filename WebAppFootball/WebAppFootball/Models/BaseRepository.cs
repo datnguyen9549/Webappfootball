@@ -1,4 +1,5 @@
 ﻿using Microsoft.Extensions.Configuration;
+using System;
 using System.Data;
 using System.Data.SqlClient;
 using System.IO;
@@ -24,6 +25,10 @@ namespace WebAppFootball.Models
             dbDataParameter.Value = parameter.Value;
             dbDataParameter.ParameterName = parameter.Name;
             dbDataParameter.DbType = parameter.DbType;
+            if (Enum.IsDefined(typeof(ParameterDirection), parameter.Direction))
+            {
+                dbDataParameter.Direction = parameter.Direction;
+            }
             command.Parameters.Add(dbDataParameter);
         }
 

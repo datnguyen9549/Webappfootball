@@ -1,18 +1,107 @@
-﻿@model  List<Player>
+﻿@model List<Player>
 @{
     ViewData["Title"] = "Index";
 }
 
 <h1>Index</h1>
+<form action="/player/search">
+    <input type="text" name="q" placeholder="Search..."/>
+    <button type="submit"><i class="fa fa-search"></i>Search</button>
+</form>
+<br />
+<a href="/player/Create" class="btn btn-primary">Add player</a>
+<br />
+@*<ul>
+    <li><a href="/player">1</a></li>
+    <li><a href="/player/index/2">2</a></li>
+    <li><a href="/player/index/3">3</a></li>
+    <li><a href="/player/index/4">4</a></li>
+    <li><a href="/player/index/5">5</a></li>
+</ul>*@
+@{ 
+    int id = ViewContext.RouteData.Values["id"] != null ? Convert.ToInt32(ViewContext.RouteData.Values["id"]) : 1;
+}
+<ul class="pagination">
+    @for (int i = 1; i <= ViewBag.page; i++)
+    {
+        @*if (i == id)
+        {
+            <li class="page-item active"><a class="page-link" href="/player/index/@i">@i</a></li>
+        }
+        else
+        {
+            <li class="page-item"><a class="page-link" href="/player/index/@i">@i</a></li>
+        }*@
+        <li class="page-item"><a class="page-link" href="/player/index/@i">@i</a></li>
+
+    }
+
+</ul>
+@*Get Id by Javascript*@
+<script type="text/javascript">
+    var a = document.getElementsByClassName("page-item")
+    a[@id - 1].className = "page-item active";
+</script>
 <table class="table table-bordered">
+    <tr>
+        <th>SrNo</th>
+        <th>Full Name</th>
+        <th>Club Name</th>
+        <th>Country</th>
+        <th>Number</th>
+        <th>Position</th>
+        <th>Date of birth</th>
+        <th>Edit</th>
+        <th>Delete</th>
+        <th>Delete2</th>
+    </tr>
     @foreach (var item in Model)
     {
         <tr>
+            <td>@(Model.IndexOf(item) + 1)</td>
             <td>@item.Fullname</td>
-            <td>@item.Nationality</td>
+            <td>@item.ClubName</td>
+            <td>@item.CountryName</td>
             <td>@item.Number</td>
-            <td>@item.Position</td>
-            <td>@item.DOB</td>
+            <td>@item.PositionName</td>
+            <td>@string.Format("{0:dd/MM/yyyy}", item.DOB)</td>
+            <td>
+                <a href="/player/edit/@item.PlayerId">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </td>
+            <td>
+                <a href="/player/delete/@item.PlayerId">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </td>
+            <td>
+                <i val="@item.PlayerId" class="del fas fa-trash"></i>
+            </td>
         </tr>
     }
 </table>
+<div class="modal" id="m">
+    <div class="modal-dialog">
+        <div class="modal-content">
+            <div class="modal-header">
+                Are you sure to delete?
+            </div>
+            <div class="modal-body">
+                <form action="/player/delete" name="f" method="post">
+                    <input type="hidden" name="id"/>
+                    <button class="btn btn-primary">Delete</button>
+                    <button class="btn btn-info" data-dismiss="modal">Cancel</button>
+                </form>
+            </div>
+        </div>
+    </div>
+</div>
+<script>
+    $('.del').click(function () {
+        //alert($(this).attr('val'));
+        var v = $(this).attr('val');
+        $(f['id']).val(v);
+        $(m).modal('show')
+    });
+</script>

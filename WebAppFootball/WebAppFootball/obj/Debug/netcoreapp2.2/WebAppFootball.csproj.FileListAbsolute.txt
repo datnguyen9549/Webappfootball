@@ -36,5 +36,5 @@ D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\net
 D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\Razor\Views\Upload\Multiple.g.cshtml.cs
 D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\Razor\Views\Upload\FromUrl.g.cshtml.cs
 D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\Razor\Views\Club\Search.g.cshtml.cs
-D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\WebAppFootball.csprojAssemblyReference.cache
 D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\Razor\Views\Player\Index.g.cshtml.cs
+D:\Programing\ASP.NET\Learn\Module_2\WebAppFootball\WebAppFootball\obj\Debug\netcoreapp2.2\WebAppFootball.csprojAssemblyReference.cache

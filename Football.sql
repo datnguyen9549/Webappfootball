@@ -2,6 +2,37 @@ CREATE DATABASE Football;
 GO
 USE Football;
 GO
+CREATE TABLE Country
+(
+	CountryId CHAR(2) NOT NULL PRIMARY KEY,
+	CountryName NVARCHAR(64) NOT NULL
+)
+GO
+CREATE TABLE Position
+(
+	PositionId CHAR(2) NOT NULL PRIMARY KEY,
+	PositionName NVARCHAR(32) NOT NULL
+)
+GO
+--DROP TABLE Coach;
+CREATE TABLE Coach (
+  CoachId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
+  Fullname NVARCHAR(128) NOT NULL,
+  YearOfBirth SMALLINT NOT NULL,
+  Nationality CHAR(2) NOT NULL
+);
+GO
+
+--ALTER TABLE Coach ADD CONSTRAINT FK_Coach_Nationality FOREIGN KEY (Nationality) REFERENCES Country(CountryId);
+GO
+CREATE TABLE Stadium (
+  StadiumId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
+  StadiumName NVARCHAR(64) NOT NULL,
+  City NVARCHAR(64) NOT NULL,
+  YearOfBeginning SMALLINT
+);
+GO
+
 --DROP TABLE Club;
 CREATE TABLE Club (
   ClubId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
@@ -12,7 +43,308 @@ CREATE TABLE Club (
   LogoUrl NVARCHAR(128)
 );
 GO
+--ALTER TABLE Club ADD CONSTRAINT FK_Club_StadiumId FOREIGN KEY (StadiumId) REFERENCES Stadium(StadiumId);
+--ALTER TABLE Club ADD CONSTRAINT FK_Club_CoachId FOREIGN KEY (CoachId) REFERENCES Coach(CoachId);
 
+CREATE TABLE Match (
+  MatchId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
+  DateOfMatch DATE DEFAULT NULL,
+  HomeClub INT NOT NULL,
+  AwayClub INT NOT NULL,
+  StadiumId INT NOT NULL,
+  Round TINYINT NOT NULL,
+  ExtraTime DATE DEFAULT NULL,
+  Result NVARCHAR(32) DEFAULT NULL,
+  Status TINYINT DEFAULT NULL
+);
+GO
+--ALTER TABLE Match ADD CONSTRAINT FK_Match_HomeClub FOREIGN KEY (HomeClub) REFERENCES Club(ClubId);
+--ALTER TABLE Match ADD CONSTRAINT FK_Match_AwayClub FOREIGN KEY (AwayClub) REFERENCES Club(ClubId);
+--ALTER TABLE Match ADD CONSTRAINT FK_Match_StadiumId FOREIGN KEY (StadiumId) REFERENCES Stadium(StadiumId);
+GO
+CREATE TABLE Player (
+  PlayerId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
+  Fullname NVARCHAR(128) NOT NULL,
+  ClubId INT NOT NULL,
+  DOB DATE DEFAULT NULL,
+  PositionId CHAR(2) NOT NULL,
+  Nationality CHAR(2) NOT NULL,
+  Number TINYINT NOT NULL
+);
+GO
+--ALTER TABLE Player ADD CONSTRAINT FK_Player_ClubId FOREIGN KEY (ClubId) REFERENCES Club(ClubId);
+--ALTER TABLE Player ADD CONSTRAINT FK_Player_PositionId FOREIGN KEY (PositionId) REFERENCES Position(PositionId);
+--ALTER TABLE Player ADD CONSTRAINT FK_Player_Nationality FOREIGN KEY (Nationality) REFERENCES Country(CountryId);
+GO
+CREATE TABLE MatchPlayer (
+  MatchId INT NOT NULL,
+  PlayerId INT NOT NULL,
+  IsSubstitute SMALLINT DEFAULT NULL,
+  TimeIn SMALLINT DEFAULT NULL,
+  TimeOut SMALLINT DEFAULT NULL,
+  FoulType CHAR DEFAULT NULL,
+  PRIMARY KEY (MatchId, PlayerId)
+)
+GO
+
+--ALTER TABLE MatchPlayer ADD CONSTRAINT FK_MatchPlayer_MatchId FOREIGN KEY (MatchId) REFERENCES Match(MatchId);
+--ALTER TABLE MatchPlayer ADD CONSTRAINT FK_MatchPlayer_PlayerId FOREIGN KEY (PlayerId) REFERENCES Player(PlayerId);
+GO
+CREATE TABLE MatchGoal (
+  GoalId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
+  MatchId INT NOT NULL,
+  ClubId INT NOT NULL,
+  TimeOfGoal TINYINT NOT NULL,
+  PlayerId INT NOT NULL,
+  IsOwnGoal BIT DEFAULT NULL
+);
+GO
+CREATE PROC SearchClubs(
+	@coachId INT = NULL, 
+	@stadiumId INT = NULL,
+	@name NVARCHAR(64) = NULL,
+	@shortname CHAR(3) = NULL
+)
+AS
+BEGIN 
+	SELECT Club.*, Fullname, StadiumName FROM Club 
+		JOIN Coach ON Club.CoachId = Coach.CoachId
+		JOIN Stadium on Stadium.StadiumId = Club.StadiumId
+		WHERE 
+		(@coachId IS NULL OR Club.CoachId = @coachId)
+		AND (@stadiumId IS NULL OR Club.StadiumId = @stadiumId)
+		AND (@name IS NULL OR ClubName LIKE '%'+ @name + '%')
+		AND (@shortname IS NULL OR ShortName = @shortname)
+END
+GO
+CREATE PROC GetClubs
+AS
+	SELECT Club.*, StadiumName, Fullname FROM Club JOIN Stadium
+		 ON Club.StadiumId = Stadium.StadiumId
+		JOIN Coach ON Coach.CoachId = Club.CoachId
+GO
+
+CREATE PROC AddClub
+(
+	@Name NVARCHAR(128),
+	@ShortName CHAR(3),
+	@StadiumId INT,
+	@CoachId INT,
+	@LogoUrl NVARCHAR(128) = NULL
+)
+AS
+	INSERT INTO Club (ClubName, ShortName, StadiumId, CoachId, LogoUrl)
+	 VALUES (@Name, @ShortName, @StadiumId, @CoachId, @LogoUrl);
+GO
+
+CREATE PROC EditClub
+(
+	@Id INT,
+	@Name NVARCHAR(128),
+	@ShortName CHAR(3),
+	@StadiumId INT,
+	@CoachId INT,
+	@LogoUrl NVARCHAR(128) = NULL
+)
+AS
+	UPDATE Club SET ClubName = @Name, ShortName = @ShortName, StadiumId = @StadiumId, 
+		CoachId = @CoachId, LogoUrl = @LogoUrl WHERE ClubId = @Id;
+GO
+
+CREATE PROC GetClubById(@Id INT)
+AS
+	SELECT * FROM Club WHERE ClubId = @Id;
+
+
+GO
+CREATE PROC GetCoaches
+AS
+	SELECT * FROM Coach;
+GO
+CREATE PROC AddCoach
+(
+	@Fullname NVARCHAR(128),
+	@YearOfBirth SMALLINT,
+	@Nationality NVARCHAR(64)
+)
+AS
+	INSERT INTO Coach (Fullname, YearOfBirth, Nationality)
+	 VALUES(@Fullname, @YearOfBirth, @Nationality);
+GO
+
+CREATE PROC DeleteCoach(@Id INT)
+AS
+	DELETE FROM Coach WHERE CoachId = @Id;
+GO
+
+
+CREATE PROC SearchCoach(@q NVARCHAR(32))
+AS
+	SELECT * FROM Coach WHERE Fullname LIKE @q;
+GO
+
+
+CREATE PROC DeleteCoaches(@p NVARCHAR(64))
+AS
+BEGIN
+	DECLARE @sql NVARCHAR(128) = 'DELETE FROM Coach WHERE CoachId IN ('+@p +')';
+	EXEC(@sql); 
+END
+GO
+
+
+CREATE PROC GetCoachById(@Id INT)
+AS
+	SELECT * FROM Coach WHERE CoachId = @Id;
+GO
+CREATE PROC EditCoach
+(
+	@Id INT,
+	@Fullname NVARCHAR(128),
+	@YearOfBirth SMALLINT,
+	@Nationality NVARCHAR(64)
+)
+AS
+	UPDATE Coach SET Fullname = @Fullname, YearOfBirth = @YearOfBirth, Nationality = @Nationality WHERE CoachId = @Id;
+GO
+CREATE PROC GetStadiums
+AS
+	SELECT * FROM Stadium;
+GO
+
+--Default value
+CREATE PROC AddStadium
+(
+	@Name NVARCHAR(64),
+	@City NVARCHAR(64),
+	@YearOfBeginning SMALLINT = NULL
+)
+AS
+	INSERT INTO Stadium(StadiumName, City, YearOfBeginning)
+		VALUES (@Name, @City, @YearOfBeginning);
+GO
+
+CREATE PROC DeleteStadium(@Id INT)
+AS
+	DELETE FROM Stadium WHERE StadiumId = @Id;
+GO
+
+-- Player proceture
+-- Row_number(): danh so thu tu dua tren(over) playerId da dc sort (oerder by)
+alter PROC GetPlayers(@start int, @end int)
+AS
+	select * from
+	(select ROW_NUMBER() over(order by PlayerId) as SrNo, Player.* , Club.ClubName, Position.PositionName, CountryName
+						From Player Join Position on Player.PositionId = Position.PositionId
+						join Country on Nationality = Country.CountryId
+						join Club on Player.ClubId = Club.ClubId) as Tbl
+	where SrNo between @start and @end;
+
+	return (select COUNT(*) from Player);
+GO
+-- 
+
+-- Match proceture
+alter proc GetMatch
+as
+	select Match.*,Home.ClubName as HomeClubname, Away.ClubName as AwayClubName, StadiumName, Home.LogoUrl as HomeLogo, Away.LogoUrl as AwayLogo
+	from Match 
+	join Club as Home on Home.ClubId = Match.HomeClub
+	join Club as Away on Away.ClubId = Match.AwayClub
+	join Stadium on Stadium.StadiumId = Match.StadiumId;
+go
+
+update Club set LogoUrl = ClubName + '.ico';
+go
+
+Create PROC SearchPlayers(@q nvarchar(64) ,@start int, @end int)
+AS
+	select * from
+	(select ROW_NUMBER() over(order by PlayerId) as SrNo, Player.* , Club.ClubName, Position.PositionName, CountryName
+						From Player Join Position on Player.PositionId = Position.PositionId
+						join Country on Nationality = Country.CountryId
+						join Club on Player.ClubId = Club.ClubId
+						where Fullname like '%' + @q + '%'
+						) as Tbl
+	where SrNo between @start and @end;
+
+	return (select COUNT(*) from Player where Fullname like '%' + @q + '%');
+GO
+
+-- get countries and position
+create proc GetCountries
+as
+	select * from Country
+go
+create proc Getpositions
+as
+	select * from Position
+go
+-- Add player
+alter proc AddPlayer
+(
+	@FullName NVARCHAR(128),
+	@ClubId INT,
+	@PositionId char(3),
+	@Number tinyint,
+	@DOB date = NULL,
+	@Nationality char(2)
+)
+as
+	insert into Player (Fullname,ClubId,DOB,PositionId,Nationality,Number) 
+	values (@FullName,@ClubId,@DOB,@PositionId,@Nationality,@Number);
+go
+
+create proc EditPlayer
+(
+	@PlayerId Int,
+	@FullName NVARCHAR(128),
+	@ClubId INT,
+	@PositionId char(3),
+	@Number tinyint,
+	@DOB date = NULL,
+	@Nationality char(2)
+)
+as
+	update Player set Fullname = @FullName, ClubId=@ClubId,DOB=@DOB,
+	PositionId=@PositionId, Nationality=@Nationality,Number=@Number
+	where PlayerId=@PlayerId
+go
+
+create proc GetPlayerById (@id int)
+as
+	select * from Player where PlayerId=@id;
+go
+
+create proc DeletePlayer (@id int)
+as
+	delete from Player where PlayerId=@id;
+go
+--ALTER TABLE MatchGoal ADD CONSTRAINT FK_MatchGoal_MatchId FOREIGN KEY (MatchId) REFERENCES Match(MatchId);
+--ALTER TABLE MatchGoal ADD CONSTRAINT FK_MatchGoal_ClubId FOREIGN KEY (ClubId) REFERENCES Club(ClubId);
+--ALTER TABLE MatchGoal ADD CONSTRAINT FK_MatchGoal_PlayerId FOREIGN KEY (PlayerId) REFERENCES Player(PlayerId);
+--GO
+--DELETE FROM Country;
+INSERT INTO Country (CountryId, CountryName) VALUES
+  ('be' ,'Belgium'),
+  ('br' ,'Brazil'),
+  ('en' ,'England'),
+  ('de' ,'Germany'),
+  ('it' ,'Italy'),
+  ('mx' ,'Mexico'),
+  ('nl' ,'Netherlands'),
+  ('pt' ,'Portugal'),
+  ('es' ,'Spain'),
+  ('ch' ,'Switzerland'),
+  ('us' ,'United States'),
+  ('ar', 'Argentina');
+GO
+INSERT INTO Position (PositionId, PositionName) VALUES
+	('GK', N'Goalkeeper'),
+	('DF', N'Defender'),
+	('FW', N'Forward'),
+	('MF', N'Midfielder');
+GO
 SET IDENTITY_INSERT Club ON;
 INSERT INTO Club (ClubId, ClubName, ShortName, StadiumId, CoachId, LogoUrl) VALUES
 (1, N'Manchester United', 'MUN', 14, 2, NULL),
@@ -36,125 +368,105 @@ INSERT INTO Club (ClubId, ClubName, ShortName, StadiumId, CoachId, LogoUrl) VALU
 (19, N'Reading', 'REA', 3, 26, NULL),
 (20, N'Queens Park Rangers', 'QPR', 2, 32, NULL);
 SET IDENTITY_INSERT Club OFF;
-
-CREATE TABLE Coach (
-  CoachId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
-  Fullname NVARCHAR(128) NOT NULL,
-  YearOfBirth SMALLINT NOT NULL,
-  Nationality NVARCHAR(64) NOT NULL
-);
 GO
 --
 -- Dumping data for table Coach
 --
 SET IDENTITY_INSERT Coach ON;
 INSERT INTO Coach (CoachId, Fullname, YearOfBirth, Nationality) VALUES
-(1, N'Roberto Martínez', 1973, N'Switzerland'),
-(2, N'David Moyes', 1963, N'United States'),
-(3, N'Manuel Pellegrini', 1953, N'England'),
-(4, N'José Mourinho', 1963, N'England'),
-(5, N'Mark Hughes', 1963, N'Belgium'),
-(6, N'Paolo Di Canio', 1968, N'Spain'),
-(7, N'Mauricio Pochettino', 1972, N'Spain'),
-(8, N'Ian Holloway', 1963, N'England'),
-(9, N'André Villas-Boas', 1977, N'Mexico'),
-(10, N'Michael Laudrup', 1964, N'Italy'),
-(11, N'Steve Bruce', 1960, N'England'),
-(12, N'Steve Clarke', 1963, N'England'),
-(13, N'Chris Hughton', 1958, N'Italy'),
-(14, N'Paul Lambert', 1969, 'NEngland'),
-(15, N'Brendan Rodgers', 1973, N'Portugal'),
-(16, N'Malky Mackay', 1972, N'England'),
-(17, N'Martin Jol', 1956, N'Spain'),
-(18, N'Sam Allardyce', 1954, N'Spain'),
-(19, N'Alan Pardew', 1961, N'Brazil'),
-(20, N'Arsène Wenger', 1949, N'Spain'),
-(21, N'Óscar García', 1973, N'Portugal'),
-(22, N'Owen Coyle', 1966, N'Italy'),
-(23, N'Steve Lomas', 1974, N'Mexico'),
-(24, N'Paul Dickov', 1972, N'Switzerland'),
-(25, N'Brian McDermott', 1961, N'Germany'),
-(26, N'Nigel Adkins', 1965, N'Italy'),
-(27, N'Gary Bowyer', 1971, N'Italy'),
-(28, N'Paul Ince', 1967, N'Switzerland'),
-(29, N'Billy Davies', 1964, N'Spain'),
-(30, N'Mark Robins', 1969, N'Spain'),
-(31, N'David Flitcroft', 1974, N'Germany'),
-(32, N'Harry Redknapp', 1947, N'England'),
-(33, N'Mick McCarthy', 1959, N'Spain'),
-(34, N'Sean Dyche', 1971, N'Spain'),
-(35, N'Dougie Freedman', 1974, N'England'),
-(36, N'Eddie Howe', 1977, N'England'),
-(37, N'Gianfranco Zola', 1966, N'Switzerland'),
-(38, N'Lee Clark', 1972, N'Switzerland'),
-(39, N'Dave Jones', 1956, N'Netherlands'),
-(40, N'Gary Johnson', 1955, N'Portugal'),
-(41, N'Nigel Pearson', 1963, N'Portugal'),
-(42, N'Chris Powell', 1969, N'Germany'),
-(43, N'Tony Mowbray', 1963, N'Brazil'),
-(44, N'Nigel Clough', 1966, N'England'),
-(45, N'Mark Cooper', 1968, N'Spain'),
-(46, N'David Weir', 1970, N'Germany'),
-(47, N'Kenny Jackett', 1962, N'Belgium'),
-(48, N'Graham Westley', 1968, N'United States'),
-(49, N'Lee Johnson', 1981, N'Belgium'),
-(50, N'Steven Pressley', 1973, N'Spain'),
-(51, N'Simon Grayson', 1969, N'Germany'),
-(52, N'Chris Kiwomya', 1969, N'Switzerland'),
-(53, N'Sean O''Driscoll', 1957, N'Germany'),
-(54, N'Joe Dunne', 1973, N'Spain'),
-(55, N'Richie Barker', 1975, N'England'),
-(56, N'Martin Allen', 1965, N'Portugal'),
-(57, N'Steve Evans', 1962, N'Brazil'),
-(58, N'Ronnie Moore', 1953, N'Portugal'),
-(59, N'Steve Davis', 1965, N'Mexico'),
-(60, N'Phil Parkinson', 1967, N'Spain'),
-(61, N'Uwe Rösler', 1968, N'England'),
-(62, N'Micky Adams', 1961, N'Mexico'),
-(63, N'Darren Ferguson', 1972, N'Spain'),
-(64, N'Dean Smith', 1971, N'Mexico'),
-(65, N'Graham Turner', 1947, N'Mexico'),
-(66, N'Karl Robinson', 1980, N'Belgium'),
-(67, N'Russell Slade', 1960, N'Spain'),
-(68, N'Greg Abbott', 1963, N'Argentina'),
-(69, N'Colin Cooper', 1967, N'Spain'),
-(70, N'James Beattie‡', 1978, N'United States'),
-(71, N'Alan Knill', 1961, N'Switzerland'),
-(72, N'Phil Brown', 1959, N'Italy'),
-(73, N'Nigel Worthington', 1961, N'Belgium'),
-(74, N'Wayne Burnett', 1971, N'England'),
-(75, N'Keith Hill', 1969, N'Portugal'),
-(76, N'John Sheridan', 1964, N'Italy'),
-(77, N'John Ward', 1951, N'Portugal'),
-(78, N'Graham Alexander', 1971, N'Spain'),
-(79, N'Guy Whittingham', 1964, N'Netherlands'),
-(80, N'Brian Laws', 1961, N'United States'),
-(81, N'Paul Cook', 1967, N'Germany'),
-(82, N'Neal Ardley', 1972, N'England'),
-(83, N'Kevin Blackwell', 1958, N'Switzerland'),
-(84, N'Gareth Ainsworth', 1973, N'Switzerland'),
-(85, N'Gary Rowett', 1974, N'Portugal'),
-(86, N'Aidy Boothroyd', 1971, N'Switzerland'),
-(87, N'Justin Edinburgh', 1969, N'Spain'),
-(88, N'Paul Cox', 1972, N'United States'),
-(89, N'Jim Bentley', 1976, N'Netherlands'),
-(90, N'Mark Yates', 1970, N'Mexico'),
-(91, N'Chris Wilder', 1967, N'Portugal'),
-(92, N'Paul Tisdale', 1973, N'Spain');
+(1, N'Roberto Martínez', 1973, 'ch'),
+(2, N'David Moyes', 1963, 'us'),
+(3, N'Manuel Pellegrini', 1953, 'en'),
+(4, N'José Mourinho', 1963, 'en'),
+(5, N'Mark Hughes', 1963, 'be'),
+(6, N'Paolo Di Canio', 1968, 'es'),
+(7, N'Mauricio Pochettino', 1972, 'es'),
+(8, N'Ian Holloway', 1963, 'en'),
+(9, N'André Villas-Boas', 1977, 'mx'),
+(10, N'Michael Laudrup', 1964, 'it'),
+(11, N'Steve Bruce', 1960, 'en'),
+(12, N'Steve Clarke', 1963, 'en'),
+(13, N'Chris Hughton', 1958, 'it'),
+(14, N'Paul Lambert', 1969, 'en'),
+(15, N'Brendan Rodgers', 1973, 'pt'),
+(16, N'Malky Mackay', 1972, 'en'),
+(17, N'Martin Jol', 1956, 'es'),
+(18, N'Sam Allardyce', 1954, 'es'),
+(19, N'Alan Pardew', 1961, 'br'),
+(20, N'Arsène Wenger', 1949, 'es'),
+(21, N'Óscar García', 1973, 'pt'),
+(22, N'Owen Coyle', 1966, 'it'),
+(23, N'Steve Lomas', 1974, 'mx'),
+(24, N'Paul Dickov', 1972, 'ch'),
+(25, N'Brian McDermott', 1961, 'de'),
+(26, N'Nigel Adkins', 1965, 'it'),
+(27, N'Gary Bowyer', 1971, 'it'),
+(28, N'Paul Ince', 1967, 'ch'),
+(29, N'Billy Davies', 1964, 'es'),
+(30, N'Mark Robins', 1969, 'es'),
+(31, N'David Flitcroft', 1974, 'de'),
+(32, N'Harry Redknapp', 1947, 'en'),
+(33, N'Mick McCarthy', 1959, 'es'),
+(34, N'Sean Dyche', 1971, 'es'),
+(35, N'Dougie Freedman', 1974, 'en'),
+(36, N'Eddie Howe', 1977, 'en'),
+(37, N'Gianfranco Zola', 1966, 'ch'),
+(38, N'Lee Clark', 1972, 'ch'),
+(39, N'Dave Jones', 1956, 'nl'),
+(40, N'Gary Johnson', 1955, 'pt'),
+(41, N'Nigel Pearson', 1963, 'pt'),
+(42, N'Chris Powell', 1969, 'de'),
+(43, N'Tony Mowbray', 1963, 'br'),
+(44, N'Nigel Clough', 1966, 'en'),
+(45, N'Mark Cooper', 1968, 'es'),
+(46, N'David Weir', 1970, 'de'),
+(47, N'Kenny Jackett', 1962, 'be'),
+(48, N'Graham Westley', 1968, 'us'),
+(49, N'Lee Johnson', 1981, 'be'),
+(50, N'Steven Pressley', 1973, 'es'),
+(51, N'Simon Grayson', 1969, 'de'),
+(52, N'Chris Kiwomya', 1969, 'ch'),
+(53, N'Sean O''Driscoll', 1957, 'de'),
+(54, N'Joe Dunne', 1973, 'es'),
+(55, N'Richie Barker', 1975, 'en'),
+(56, N'Martin Allen', 1965, 'pt'),
+(57, N'Steve Evans', 1962, 'br'),
+(58, N'Ronnie Moore', 1953, 'pt'),
+(59, N'Steve Davis', 1965, 'mx'),
+(60, N'Phil Parkinson', 1967, 'es'),
+(61, N'Uwe Rösler', 1968, 'en'),
+(62, N'Micky Adams', 1961, 'mx'),
+(63, N'Darren Ferguson', 1972, 'es'),
+(64, N'Dean Smith', 1971, 'mx'),
+(65, N'Graham Turner', 1947, 'mx'),
+(66, N'Karl Robinson', 1980, 'be'),
+(67, N'Russell Slade', 1960, 'es'),
+(68, N'Greg Abbott', 1963, 'ar'),
+(69, N'Colin Cooper', 1967, 'es'),
+(70, N'James Beattie‡', 1978, 'us'),
+(71, N'Alan Knill', 1961, 'ch'),
+(72, N'Phil Brown', 1959, 'it'),
+(73, N'Nigel Worthington', 1961, 'be'),
+(74, N'Wayne Burnett', 1971, 'en'),
+(75, N'Keith Hill', 1969, 'pt'),
+(76, N'John Sheridan', 1964, 'it'),
+(77, N'John Ward', 1951, 'pt'),
+(78, N'Graham Alexander', 1971, 'es'),
+(79, N'Guy Whittingham', 1964, 'nl'),
+(80, N'Brian Laws', 1961, 'us'),
+(81, N'Paul Cook', 1967, 'de'),
+(82, N'Neal Ardley', 1972, 'en'),
+(83, N'Kevin Blackwell', 1958, 'ch'),
+(84, N'Gareth Ainsworth', 1973, 'ch'),
+(85, N'Gary Rowett', 1974, 'pt'),
+(86, N'Aidy Boothroyd', 1971, 'ch'),
+(87, N'Justin Edinburgh', 1969, 'es'),
+(88, N'Paul Cox', 1972, 'us'),
+(89, N'Jim Bentley', 1976, 'nl'),
+(90, N'Mark Yates', 1970, 'mx'),
+(91, N'Chris Wilder', 1967, 'pt'),
+(92, N'Paul Tisdale', 1973, 'es');
 SET IDENTITY_INSERT Coach OFF;
-
-
-CREATE TABLE Match (
-  MatchId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
-  DateOfMatch DATE DEFAULT NULL,
-  HomeClub INT NOT NULL,
-  AwayClub INT NOT NULL,
-  StadiumId INT NOT NULL,
-  Round TINYINT NOT NULL,
-  ExtraTime DATE DEFAULT NULL,
-  Result NVARCHAR(32) DEFAULT NULL,
-  Status TINYINT DEFAULT NULL
-);
 GO
 SET IDENTITY_INSERT Match ON;
 INSERT INTO Match (MatchId, DateOfMatch, HomeClub, AwayClub, StadiumId, Round, ExtraTime, Result, Status) VALUES
@@ -545,15 +857,7 @@ SET IDENTITY_INSERT Match OFF;
 -- Table structure for table MatchGoal
 --
 GO
-CREATE TABLE MatchGoal (
-  GoalId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
-  MatchId INT NOT NULL,
-  ClubId INT NOT NULL,
-  TimeOfGoal TINYINT NOT NULL,
-  PlayerId INT NOT NULL,
-  IsOwnGoal TINYINT DEFAULT NULL
-);
-GO
+
 --
 -- Dumping data for table MatchGoal
 --
@@ -1629,21 +1933,12 @@ SET IDENTITY_INSERT MatchGoal OFF;
 --
 -- Table structure for table MatchPlayer
 --
-GO
-CREATE TABLE MatchPlayer (
-  MatchId INT NOT NULL,
-  PlayerId INT NOT NULL,
-  IsSubstitute SMALLINT DEFAULT NULL,
-  TimeIn SMALLINT DEFAULT NULL,
-  TimeOut SMALLINT DEFAULT NULL,
-  FoulType CHAR DEFAULT NULL
-)
-GO
+
 --DELETE FROM MatchPlayer
 --
 -- Dumping data for table MatchPlayer
 --
-
+GO
 INSERT INTO MatchPlayer (MatchId, PlayerId, IsSubstitute, TimeIn, TimeOut, FoulType) VALUES
 (1, 88, NULL, 0, 90, NULL),
 (1, 89, NULL, 0, 90, NULL),
@@ -11203,501 +11498,479 @@ INSERT INTO MatchPlayer (MatchId, PlayerId, IsSubstitute, TimeIn, TimeOut, FoulT
 (380, 430, 1, NULL, NULL, NULL),
 (380, 431, NULL, 0, 90, NULL),
 (380, 433, NULL, 0, 90, NULL);
-
+GO
 -- --------------------------------------------------------
 
 --
 -- Table structure for table Player
 --
 
-CREATE TABLE Player (
-  PlayerId INT NOT NULL IDENTITY(1, 1) PRIMARY KEY,
-  Fullname NVARCHAR(128) NOT NULL,
-  ClubId INT NOT NULL,
-  DOB DATE DEFAULT NULL,
-  Position CHAR(2) NOT NULL,
-  Nationality NVARCHAR(64) NOT NULL,
-  Number TINYINT NOT NULL
-);
-GO
 
--- Thu tuc get player
-create proc GetPlayers
-as
-	select * from Player;
-go
 --
 -- Dumping data for table Player
 --
+GO
 SET IDENTITY_INSERT Player ON;
-INSERT INTO Player (PlayerId, Fullname, ClubId, DOB, Position, Nationality, Number) VALUES
-(1, N'Andrey Arshavin', 4, NULL, 'MF', 'Argentina', 19),
-(2, N'Mikel Arteta', 4, NULL, 'FW', 'Portugal', 24),
-(3, N'Santi Cazorla', 4, NULL, 'GK', 'Switzerland', 2),
-(4, N'Marouane Chamakh', 4, NULL, 'GK', 'Netherlands', 23),
-(5, N'Andre Dos Santos', 4, NULL, 'DF', 'Switzerland', 1),
-(6, N'Abou Diaby', 4, NULL, 'MF', 'Spain', 17),
-(7, N'Johan Djourou', 4, NULL, 'DF', 'Spain', 25),
-(8, N'Lukasz Fabianski', 4, NULL, 'DF', 'Spain', 22),
-(9, N'Gervinho', 4, NULL, 'FW', 'Brazil', 3),
-(10, N'Kieran Gibbs', 4, NULL, 'GK', 'Spain', 20),
-(11, N'Olivier Giroud', 4, NULL, 'FW', 'Germany', 6),
-(12, N'Laurent Koscielny', 4, NULL, 'GK', 'Portugal', 12),
-(13, N'Vito Mannone', 4, NULL, 'DF', 'Portugal', 9),
-(14, N'Per Mertesacker', 4, NULL, 'DF', 'England', 15),
-(15, N'Lukas Podolski', 4, NULL, 'DF', 'Brazil', 4),
-(16, N'Aaron Ramsey', 4, NULL, 'GK', 'England', 10),
-(17, N'Tomas Rosicky', 4, NULL, 'MF', 'Spain', 16),
-(18, N'Bacary Sagna', 4, NULL, 'FW', 'England', 11),
-(19, N'Sebastien Squillaci', 4, NULL, 'GK', 'Italy', 7),
-(20, N'Wojciech Szczesny', 4, NULL, 'GK', 'Netherlands', 18),
-(21, N'Thomas Vermaelen', 4, NULL, 'FW', 'Mexico', 14),
-(22, N'Theo Walcott', 4, NULL, 'MF', 'Spain', 5),
-(23, N'Craig Eastmond.', 4, NULL, 'DF', 'Spain', 13),
-(24, N'Gabriel Agbonlahor', 15, NULL, 'GK', 'Belgium', 21),
-(25, N'Marc Albrighton', 15, NULL, 'FW', 'Italy', 8),
-(26, N'Barry Bannan', 15, NULL, 'DF', 'Italy', 19),
-(27, N'Darren Bent', 15, NULL, 'FW', 'Switzerland', 24),
-(28, N'Ciaran Clark', 15, NULL, 'FW', 'Brazil', 2),
-(29, N'Fabian Delph', 15, NULL, 'DF', 'England', 23),
-(30, N'Richard Dunne', 15, NULL, 'FW', 'Belgium', 1),
-(31, N'Karim El Ahmadi', 15, NULL, 'FW', 'Spain', 17),
-(32, N'Shay Given', 15, NULL, 'DF', 'Italy', 25),
-(33, N'Bradley Guzan', 15, NULL, 'FW', 'Netherlands', 22),
-(34, N'Christopher Herd', 15, NULL, 'FW', 'Spain', 3),
-(35, N'Brett Holman', 15, NULL, 'FW', 'England', 20),
-(36, N'Alan Hutton', 15, NULL, 'GK', 'Netherlands', 6),
-(37, N'Stephen Ireland', 15, NULL, 'GK', 'Italy', 12),
-(38, N'Eric Lichaj', 15, NULL, 'GK', 'Spain', 9),
-(39, N'Matthew Lowton', 15, NULL, 'GK', 'England', 15),
-(40, N'Ashley Westwood', 15, NULL, 'MF', 'Netherlands', 4),
-(41, N'Andrew Marshall', 15, NULL, 'MF', 'Switzerland', 10),
-(42, N'Charles ''Zogbia', 15, NULL, 'DF', 'England', 16),
-(43, N'Stiliyan Petrov', 15, NULL, 'DF', 'Italy', 11),
-(44, N'Enda Stevens', 15, NULL, 'FW', 'Spain', 7),
-(45, N'Ron Vlaar', 15, NULL, 'GK', 'Spain', 18),
-(46, N'Stephen Warnock', 15, NULL, 'GK', 'Netherlands', 14),
-(47, N'Joseph Bennett', 15, NULL, 'MF', 'England', 5),
-(48, N'Christian Benteke.', 15, NULL, 'DF', 'Argentina', 13),
-(49, N'Petr Cech', 3, NULL, 'MF', 'Spain', 21),
-(50, N'Branislav Ivanovic', 3, NULL, 'MF', 'United States', 8),
-(51, N'Cesar Azpilicueta', 3, NULL, 'MF', 'England', 19),
-(52, N'Ashley Cole', 3, NULL, 'GK', 'Italy', 24),
-(53, N'David Luiz', 3, NULL, 'MF', 'Spain', 2),
-(54, N'Ramires', 3, NULL, 'DF', 'Portugal', 23),
-(55, N'Frank Lampard', 3, NULL, 'DF', 'Spain', 1),
-(56, N'Fernando Torres', 3, NULL, 'MF', 'Portugal', 17),
-(57, N'Juan Mata', 3, NULL, 'FW', 'England', 25),
-(58, N'Victor Moses', 3, NULL, 'GK', 'Italy', 22),
-(59, N'John Obi Mikel', 3, NULL, 'GK', 'England', 3),
-(60, N'Florent Malouda', 3, NULL, 'DF', 'Spain', 20),
-(61, N'Paulo Ferreira', 3, NULL, 'MF', 'Spain', 6),
-(62, N'Marko Marin', 3, NULL, 'MF', 'Argentina', 12),
-(63, N'Ross Turnbull', 3, NULL, 'GK', 'United States', 9),
-(64, N'Daniel Sturridge', 3, NULL, 'DF', 'Spain', 15),
-(65, N'Gary Cahill', 3, NULL, 'GK', 'Italy', 4),
-(66, N'John Terry', 3, NULL, 'DF', 'Germany', 10),
-(67, N'Ryan Bertrand', 3, NULL, 'DF', 'Brazil', 16),
-(68, N'Hilario.', 3, NULL, 'FW', 'Spain', 11),
-(69, N'Victor Anichebe', 6, NULL, 'MF', 'England', 7),
-(70, N'Leighton Baines', 6, NULL, 'GK', 'England', 18),
-(71, N'Darron Gibson', 6, NULL, 'DF', 'Switzerland', 14),
-(72, N'Anthony Hibbert', 6, NULL, 'DF', 'Argentina', 5),
-(73, N'Philip Jagielka', 6, NULL, 'DF', 'Spain', 13),
-(74, N'Philip Neville', 6, NULL, 'MF', 'England', 21),
-(75, N'Leon Osman', 6, NULL, 'GK', 'Spain', 8),
-(76, N'Seamus Coleman', 6, NULL, 'GK', 'Spain', 19),
-(77, N'Sylvain Distin', 6, NULL, 'DF', 'England', 24),
-(78, N'Marouane Fellaini', 6, NULL, 'FW', 'Mexico', 2),
-(79, N'Magaye Gueye', 6, NULL, 'GK', 'Germany', 23),
-(80, N'John Heitinga', 6, NULL, 'DF', 'Spain', 1),
-(81, N'Timothy Howard', 6, NULL, 'MF', 'Italy', 17),
-(82, N'Nikica Jelavic', 6, NULL, 'MF', 'Spain', 25),
-(83, N'Jan Mucha', 6, NULL, 'DF', 'Spain', 22),
-(84, N'Steven Naismith', 6, NULL, 'DF', 'Italy', 3),
-(85, N'Steven Pienaar', 6, NULL, 'GK', 'England', 20),
-(86, N'Kevin Mirallas', 6, NULL, 'MF', 'Italy', 6),
-(87, N'Bryan Oviedo.', 6, NULL, 'DF', 'Germany', 12),
-(88, N'Mark Schwarzer', 12, NULL, 'DF', 'England', 9),
-(89, N'Csaba Somogyi', 12, NULL, 'FW', 'Spain', 15),
-(90, N'David Stockdale', 12, NULL, 'GK', 'Italy', 4),
-(91, N'Neil Etheridge', 12, NULL, 'MF', 'Italy', 10),
-(92, N'Sascha Riether', 12, NULL, 'DF', 'Germany', 16),
-(93, N'Stephen Kelly', 12, NULL, 'DF', 'Spain', 11),
-(94, N'Aaron Hughes', 12, NULL, 'FW', 'Spain', 7),
-(95, N'Brede Hangeland', 12, NULL, 'DF', 'England', 18),
-(96, N'Philippe Senderos', 12, NULL, 'MF', 'Spain', 14),
-(97, N'John Arne Riise', 12, NULL, 'MF', 'Switzerland', 5),
-(98, N'Damien Duff', 12, NULL, 'MF', 'England', 13),
-(99, N'Ashkan Dejagah', 12, NULL, 'FW', 'Germany', 21),
-(100, N'Simon Davies', 12, NULL, 'FW', 'Spain', 8),
-(101, N'Christopher Baird', 12, NULL, 'GK', 'Spain', 19),
-(102, N'Steven Sidwell', 12, NULL, 'MF', 'England', 24),
-(103, N'Mahamadou Diarra', 12, NULL, 'DF', 'Netherlands', 2),
-(104, N'Bryan Ruiz', 12, NULL, 'FW', 'Spain', 23),
-(105, N'Kieran Richardson', 12, NULL, 'MF', 'Spain', 1),
-(106, N'Mladen Petric', 12, NULL, 'FW', 'England', 17),
-(107, N'Hugo Rodallega', 12, NULL, 'FW', 'Argentina', 25),
-(108, N'Dimitar Berbatov.', 12, NULL, 'GK', 'Belgium', 22),
-(109, N'Daniel Agger', 7, NULL, 'MF', 'Italy', 3),
-(110, N'Joe Allen', 7, NULL, 'DF', 'Brazil', 20),
-(111, N'Ossama Assaidi', 7, NULL, 'FW', 'Spain', 6),
-(112, N'Jamie Carragher', 7, NULL, 'DF', 'England', 12),
-(113, N'Sebastian Coates', 7, NULL, 'GK', 'Spain', 9),
-(114, N'Joe Cole', 7, NULL, 'DF', 'Spain', 15),
-(115, N'Doni', 7, NULL, 'GK', 'Spain', 4),
-(116, N'Stewart Downing', 7, NULL, 'MF', 'Spain', 10),
-(117, N'Steven Gerrard', 7, NULL, 'FW', 'Spain', 16),
-(118, N'Peter Gulacsi', 7, NULL, 'FW', 'Brazil', 11),
-(119, N'Jordan Henderson', 7, NULL, 'FW', 'England', 7),
-(120, N'Glen Johnson', 7, NULL, 'FW', 'Spain', 18),
-(121, N'Bradley Jones', 7, NULL, 'MF', 'Mexico', 14),
-(122, N'Jose Enrique', 7, NULL, 'FW', 'England', 5),
-(123, N'Martin Kelly', 7, NULL, 'FW', 'Mexico', 13),
-(124, N'Lucas Leiva', 7, NULL, 'GK', 'England', 21),
-(125, N'Jose Manuel Reina', 7, NULL, 'GK', 'Switzerland', 8),
-(126, N'Nuri Sahin', 7, NULL, 'DF', 'Mexico', 19),
-(127, N'Martin Skrtel', 7, NULL, 'DF', 'Spain', 24),
-(128, N'Luis Suarez.', 7, NULL, 'FW', 'Spain', 2),
-(129, N'Joe Hart', 2, NULL, 'DF', 'Switzerland', 23),
-(130, N'Micah Richards', 2, NULL, 'MF', 'Spain', 1),
-(131, N'Vincent Kompany', 2, NULL, 'MF', 'Spain', 17),
-(132, N'Pablo Zabaleta', 2, NULL, 'MF', 'Portugal', 25),
-(133, N'Joleon Lescott', 2, NULL, 'FW', 'Netherlands', 22),
-(134, N'James Milner', 2, NULL, 'FW', 'Spain', 3),
-(135, N'Samir Nasri', 2, NULL, 'MF', 'Portugal', 20),
-(136, N'Edin Dzeko', 2, NULL, 'MF', 'Italy', 6),
-(137, N'Scott Sinclair', 2, NULL, 'GK', 'Spain', 12),
-(138, N'Aleksandar Kolarov', 2, NULL, 'GK', 'Spain', 9),
-(139, N'Sergio Aguero', 2, NULL, 'GK', 'Spain', 15),
-(140, N'Gareth Barry', 2, NULL, 'MF', 'Spain', 4),
-(141, N'David Silva', 2, NULL, 'DF', 'Switzerland', 10),
-(142, N'Gael Clichy', 2, NULL, 'MF', 'Mexico', 16),
-(143, N'Kolo Toure', 2, NULL, 'GK', 'Spain', 11),
-(144, N'Richard Wright', 2, NULL, 'GK', 'Spain', 7),
-(145, N'Costel Pantilimon', 2, NULL, 'DF', 'Spain', 18),
-(146, N'Carlos Tevez', 2, NULL, 'MF', 'Italy', 14),
-(147, N'Yaya Toure', 2, NULL, 'DF', 'Portugal', 5),
-(148, N'Maicon', 2, NULL, 'GK', 'Italy', 13),
-(149, N'Javi Garcia', 2, NULL, 'MF', 'England', 21),
-(150, N'Mario Balotelli.', 2, NULL, 'DF', 'Mexico', 8),
-(151, N'Anderson', 1, NULL, 'DF', 'Switzerland', 19),
-(152, N'Bebe', 1, NULL, 'DF', 'Argentina', 24),
-(153, N'Alexander Buttner', 1, NULL, 'MF', 'England', 2),
-(154, N'Michael Carrick', 1, NULL, 'MF', 'Germany', 23),
-(155, N'Javier Hernandez', 1, NULL, 'MF', 'Switzerland', 1),
-(156, N'Tom Cleverley', 1, NULL, 'GK', 'Italy', 17),
-(157, N'David De Gea', 1, NULL, 'DF', 'United States', 25),
-(158, N'Jonathan Evans', 1, NULL, 'FW', 'Italy', 22),
-(159, N'Patrice Evra', 1, NULL, 'FW', 'Brazil', 3),
-(160, N'Rio Ferdinand', 1, NULL, 'GK', 'United States', 20),
-(161, N'Darren Fletcher', 1, NULL, 'DF', 'Italy', 6),
-(162, N'Ryan Giggs', 1, NULL, 'DF', 'Spain', 12),
-(163, N'Shinji Kagawa', 1, NULL, 'GK', 'Spain', 9),
-(164, N'Anders Lindegaard', 1, NULL, 'DF', 'Belgium', 15),
-(165, N'Nani', 1, NULL, 'MF', 'England', 4),
-(166, N'Rafael da Silva', 1, NULL, 'DF', 'England', 10),
-(167, N'Wayne Rooney', 1, NULL, 'MF', 'Netherlands', 16),
-(168, N'Paul Scholes', 1, NULL, 'FW', 'Italy', 11),
-(169, N'Chris Smalling', 1, NULL, 'DF', 'Spain', 7),
-(170, N'Luis Antonio Valencia', 1, NULL, 'GK', 'England', 18),
-(171, N'Robin Van Persie', 1, NULL, 'FW', 'Germany', 14),
-(172, N'Nemanja Vidic', 1, NULL, 'DF', 'Switzerland', 5),
-(173, N'Daniel Welbeck', 1, NULL, 'FW', 'Spain', 13),
-(174, N'Ashley Young.', 1, NULL, 'MF', 'Spain', 21),
-(175, N'Romain Amalfitano', 16, NULL, 'FW', 'Portugal', 8),
-(176, N'Shola Ameobi', 16, NULL, 'GK', 'Netherlands', 19),
-(177, N'Vurnon Anita', 16, NULL, 'DF', 'England', 24),
-(178, N'Demba Ba', 16, NULL, 'MF', 'Spain', 2),
-(179, N'Hatem Ben Arfa', 16, NULL, 'GK', 'Mexico', 23),
-(180, N'Yohan Cabaye', 16, NULL, 'MF', 'Belgium', 1),
-(181, N'Papiss Cisse', 16, NULL, 'GK', 'Argentina', 17),
-(182, N'Fabricio Coloccini', 16, NULL, 'FW', 'Mexico', 25),
-(183, N'Robert Elliot', 16, NULL, 'GK', 'Belgium', 22),
-(184, N'Dan Gosling', 16, NULL, 'FW', 'England', 3),
-(185, N'Stephen Harper', 16, NULL, 'MF', 'Portugal', 20),
-(186, N'Jonas Gutierrez', 16, NULL, 'DF', 'United States', 6),
-(187, N'Timothy Krul', 16, NULL, 'FW', 'Spain', 12),
-(188, N'Sylvain Marveaux', 16, NULL, 'DF', 'Mexico', 9),
-(189, N'Gabriel Obertan', 16, NULL, 'GK', 'United States', 15),
-(190, N'James Perch', 16, NULL, 'GK', 'Argentina', 4),
-(191, N'Daniel Simpson', 16, NULL, 'MF', 'Belgium', 10),
-(192, N'Ryan Taylor', 16, NULL, 'GK', 'Italy', 16),
-(193, N'Steven Taylor', 16, NULL, 'MF', 'England', 11),
-(194, N'Cheick Tiote', 16, NULL, 'GK', 'England', 7),
-(195, N'Mike Williamson', 16, NULL, 'DF', 'Netherlands', 18),
-(196, N'Xisco.', 16, NULL, 'DF', 'Portugal', 14),
-(197, N'Leon Barnett', 11, NULL, 'GK', 'Argentina', 5),
-(198, N'Sebastian Bassong', 11, NULL, 'MF', 'England', 13),
-(199, N'Elliott Bennett', 11, NULL, 'DF', 'Brazil', 21),
-(200, N'Ryan Bennett', 11, NULL, 'GK', 'Argentina', 8),
-(201, N'Mark Bunn', 11, NULL, 'FW', 'Spain', 19),
-(202, N'Jacob Butterfield', 11, NULL, 'MF', 'Portugal', 24),
-(203, N'David Fox', 11, NULL, 'MF', 'Brazil', 2),
-(204, N'Javier Garrido', 11, NULL, 'FW', 'Spain', 23),
-(205, N'Grant Holt', 11, NULL, 'FW', 'Italy', 1),
-(206, N'Wesley Hoolahan', 11, NULL, 'DF', 'Spain', 17),
-(207, N'Jonathan Howson', 11, NULL, 'MF', 'Netherlands', 25),
-(208, N'Simeon Jackson', 11, NULL, 'DF', 'England', 22),
-(209, N'Bradley Johnson', 11, NULL, 'MF', 'Spain', 3),
-(210, N'Simon Lappin', 11, NULL, 'FW', 'Belgium', 20),
-(211, N'Chris Martin', 11, NULL, 'FW', 'Italy', 6),
-(212, N'Russell Martin', 11, NULL, 'FW', 'England', 12),
-(213, N'Steven Morison', 11, NULL, 'FW', 'Spain', 9),
-(214, N'Anthony Pilkington', 11, NULL, 'GK', 'Mexico', 15),
-(215, N'John Ruddy', 11, NULL, 'MF', 'Belgium', 4),
-(216, N'Robert Snodgrass', 11, NULL, 'GK', 'England', 10),
-(217, N'Andrew Surman', 11, NULL, 'FW', 'Spain', 16),
-(218, N'Alexander Tettey', 11, NULL, 'FW', 'Spain', 11),
-(219, N'Marc Tierney', 11, NULL, 'FW', 'Mexico', 7),
-(220, N'Michael Turner', 11, NULL, 'GK', 'Brazil', 18),
-(221, N'Steven Whittaker.', 11, NULL, 'FW', 'England', 14),
-(222, N'Robert Green', 20, NULL, 'GK', 'England', 5),
-(223, N'Samba Diakite', 20, NULL, 'GK', 'Argentina', 13),
-(224, N'Armand Traore', 20, NULL, 'GK', 'Germany', 21),
-(225, N'Shaun Derry', 20, NULL, 'MF', 'Argentina', 8),
-(226, N'Anton Ferdinand', 20, NULL, 'MF', 'Brazil', 19),
-(227, N'Clinton Hill', 20, NULL, 'GK', 'Spain', 24),
-(228, N'Ji-Sung Park', 20, NULL, 'MF', 'Netherlands', 2),
-(229, N'Andrew Johnson', 20, NULL, 'MF', 'Spain', 23),
-(230, N'Djibril Cisse', 20, NULL, 'MF', 'Mexico', 1),
-(231, N'Adel Taarabt', 20, NULL, 'GK', 'England', 17),
-(232, N'Bradley Wright-Phillips', 20, NULL, 'GK', 'Spain', 25),
-(233, N'James Mackie', 20, NULL, 'FW', 'England', 22),
-(234, N'Nedum Onuoha', 20, NULL, 'GK', 'Spain', 3),
-(235, N'Stephane Mbia', 20, NULL, 'GK', 'Spain', 20),
-(236, N'Ryan Nelsen', 20, NULL, 'GK', 'Portugal', 6),
-(237, N'Kieron Dyer', 20, NULL, 'FW', 'Italy', 12),
-(238, N'Fabio da Silva', 20, NULL, 'GK', 'Spain', 9),
-(239, N'Hogan Ephraim', 20, NULL, 'DF', 'Spain', 15),
-(240, N'David Wayne Hoilett', 20, NULL, 'MF', 'Spain', 4),
-(241, N'Brian Murphy', 20, NULL, 'FW', 'Italy', 10),
-(242, N'Robert Zamora', 20, NULL, 'GK', 'Belgium', 16),
-(243, N'Julio Cesar', 20, NULL, 'GK', 'England', 11),
-(244, N'Alejandro Faurlin', 20, NULL, 'MF', 'Belgium', 7),
-(245, N'Esteban Granero', 20, NULL, 'FW', 'Portugal', 18),
-(246, N'Jose Bosingwa.', 20, NULL, 'FW', 'Argentina', 14),
-(247, N'Simon Church', 19, NULL, 'GK', 'Spain', 5),
-(248, N'Shaun Cummings', 19, NULL, 'MF', 'Argentina', 13),
-(249, N'Christopher Gunter', 19, NULL, 'MF', 'Spain', 21),
-(250, N'Danny Guthrie', 19, NULL, 'GK', 'Belgium', 8),
-(251, N'Ian Harte', 19, NULL, 'DF', 'Germany', 19),
-(252, N'Jem Karacan', 19, NULL, 'GK', 'Germany', 24),
-(253, N'Adam Le Fondre', 19, NULL, 'DF', 'England', 2),
-(254, N'Mikele Leigertwood', 19, NULL, 'MF', 'England', 23),
-(255, N'Joel McAnuff', 19, NULL, 'MF', 'Portugal', 1),
-(256, N'Alex McCarthy', 19, NULL, 'DF', 'Spain', 17),
-(257, N'Garath McCleary', 19, NULL, 'MF', 'Spain', 25),
-(258, N'Adrian Mariappa', 19, NULL, 'GK', 'United States', 22),
-(259, N'Alexander Pearce', 19, NULL, 'DF', 'England', 3),
-(260, N'Jason Roberts', 19, NULL, 'MF', 'England', 20),
-(261, N'Thomas Robson-Kanu', 19, NULL, 'DF', 'Belgium', 6),
-(262, N'Nicholas Shorey', 19, NULL, 'GK', 'Spain', 12),
-(263, N'Jay Tabb', 19, NULL, 'GK', 'Germany', 9),
-(264, N'Stuart Taylor', 19, NULL, 'DF', 'Portugal', 15),
-(265, N'Mikkel Andersen', 19, NULL, 'MF', 'Spain', 4),
-(266, N'Adam Federici', 19, NULL, 'FW', 'Spain', 10),
-(267, N'Kaspars Gorkss', 19, NULL, 'GK', 'Portugal', 16),
-(268, N'Brynjar Gunnarsson', 19, NULL, 'DF', 'Germany', 11),
-(269, N'Noel Hunt', 19, NULL, 'MF', 'England', 7),
-(270, N'Jimmy Kebe', 19, NULL, 'GK', 'England', 18),
-(271, N'Pavel Pogrebnyak.', 19, NULL, 'MF', 'Argentina', 14),
-(272, N'Daniel Butterfield', 14, NULL, 'GK', 'Mexico', 5),
-(273, N'Richard Chaplow', 14, NULL, 'MF', 'Mexico', 13),
-(274, N'Jack Cork', 14, NULL, 'MF', 'England', 21),
-(275, N'Kelvin Davis', 14, NULL, 'GK', 'Spain', 8),
-(276, N'Steven Davis', 14, NULL, 'GK', 'Italy', 19),
-(277, N'Steve De Ridder', 14, NULL, 'MF', 'Mexico', 24),
-(278, N'Ryan Dickson', 14, NULL, 'GK', 'Spain', 2),
-(279, N'Guilherme Do Prado', 14, NULL, 'FW', 'Belgium', 23),
-(280, N'Jose Fonte', 14, NULL, 'DF', 'Argentina', 1),
-(281, N'Jonathan Forte', 14, NULL, 'GK', 'England', 17),
-(282, N'Daniel Fox', 14, NULL, 'MF', 'Germany', 25),
-(283, N'Jos Hooiveld', 14, NULL, 'DF', 'Belgium', 22),
-(284, N'Adam Lallana', 14, NULL, 'GK', 'Belgium', 3),
-(285, N'Rickie Lambert', 14, NULL, 'GK', 'United States', 20),
-(286, N'Tadanari Lee', 14, NULL, 'GK', 'Belgium', 6),
-(287, N'Emmanuel Mayuka', 14, NULL, 'DF', 'Spain', 12),
-(288, N'Jason Puncheon', 14, NULL, 'GK', 'Mexico', 9),
-(289, N'Gaston Ramirez', 14, NULL, 'DF', 'Argentina', 15),
-(290, N'Frazer Richardson', 14, NULL, 'MF', 'Switzerland', 4),
-(291, N'Jay Rodriguez', 14, NULL, 'MF', 'Spain', 10),
-(292, N'Morgan Schneiderlin', 14, NULL, 'MF', 'Mexico', 16),
-(293, N'Daniel Seaborne', 14, NULL, 'MF', 'Spain', 11),
-(294, N'Maya Yoshida.', 14, NULL, 'FW', 'United States', 7),
-(295, N'Charlie Adam', 13, NULL, 'MF', 'Netherlands', 18),
-(296, N'Asmir Begovic', 13, NULL, 'GK', 'Germany', 14),
-(297, N'Geoff Cameron', 13, NULL, 'DF', 'England', 5),
-(298, N'Peter Crouch', 13, NULL, 'FW', 'Switzerland', 13),
-(299, N'Rory Delap', 13, NULL, 'FW', 'Spain', 21),
-(300, N'Maurice Edu', 13, NULL, 'FW', 'Germany', 8),
-(301, N'Matthew Etherington', 13, NULL, 'DF', 'Italy', 19),
-(302, N'Robert Huth', 13, NULL, 'MF', 'Spain', 24),
-(303, N'Cameron Jerome', 13, NULL, 'GK', 'Switzerland', 2),
-(304, N'Kenwyne Jones', 13, NULL, 'GK', 'Portugal', 23),
-(305, N'Michael Kightly', 13, NULL, 'MF', 'Netherlands', 1),
-(306, N'Carlo Nash', 13, NULL, 'DF', 'Italy', 17),
-(307, N'Steven N’Zonzi', 13, NULL, 'MF', 'Italy', 25),
-(308, N'Michael Owen', 13, NULL, 'DF', 'Portugal', 22),
-(309, N'Wilson Palacios', 13, NULL, 'MF', 'Spain', 3),
-(310, N'Jermaine Pennant', 13, NULL, 'DF', 'Spain', 20),
-(311, N'Ryan Shawcross', 13, NULL, 'DF', 'Spain', 6),
-(312, N'Ryan Shotton', 13, NULL, 'GK', 'Portugal', 12),
-(313, N'Thomas Sorensen', 13, NULL, 'MF', 'Spain', 9),
-(314, N'Matthew Upson', 13, NULL, 'MF', 'Spain', 15),
-(315, N'Jonathan Walters', 13, NULL, 'MF', 'England', 4),
-(316, N'Glenn Whelan', 13, NULL, 'FW', 'United States', 10),
-(317, N'Dean Whitehead', 13, NULL, 'FW', 'England', 16),
-(318, N'Andy Wilkinson', 13, NULL, 'FW', 'Mexico', 11),
-(319, N'Marc Wilson.', 13, NULL, 'FW', 'United States', 7),
-(320, N'Phillip Bardsley', 17, NULL, 'DF', 'England', 18),
-(321, N'Titus Bramble', 17, NULL, 'FW', 'Spain', 14),
-(322, N'Wesley Brown', 17, NULL, 'DF', 'Portugal', 5),
-(323, N'Frazier Campbell', 17, NULL, 'DF', 'Italy', 13),
-(324, N'Lee Cattermole', 17, NULL, 'DF', 'Portugal', 21),
-(325, N'Jack Colback', 17, NULL, 'DF', 'England', 8),
-(326, N'Carlos Cuellar', 17, NULL, 'GK', 'Netherlands', 19),
-(327, N'Steven Fletcher', 17, NULL, 'FW', 'Spain', 24),
-(328, N'Craig Gardner', 17, NULL, 'DF', 'United States', 2),
-(329, N'Adam Johnson', 17, NULL, 'FW', 'England', 23),
-(330, N'Matthew Kilgallon', 17, NULL, 'FW', 'Mexico', 1),
-(331, N'Sebastian Larsson', 17, NULL, 'FW', 'England', 17),
-(332, N'James McClean', 17, NULL, 'MF', 'England', 25),
-(333, N'David Meyler', 17, NULL, 'FW', 'Argentina', 22),
-(334, N'Simon Mignolet', 17, NULL, 'FW', 'Italy', 3),
-(335, N'John O''Shea', 17, NULL, 'MF', 'Switzerland', 20),
-(336, N'Daniel Rose', 17, NULL, 'DF', 'England', 6),
-(337, N'Louis Saha', 17, NULL, 'GK', 'United States', 12),
-(338, N'Stephane Sessegnon', 17, NULL, 'FW', 'England', 9),
-(339, N'David Vaughan', 17, NULL, 'FW', 'Italy', 15),
-(340, N'Keiren Westwood.', 17, NULL, 'GK', 'Netherlands', 4),
-(341, N'Germaine Agustien', 9, NULL, 'MF', 'Spain', 10),
-(342, N'Leon Britton', 9, NULL, 'FW', 'Mexico', 16),
-(343, N'Jonathan De Guzman', 9, NULL, 'GK', 'Italy', 11),
-(344, N'Nathan Dyer', 9, NULL, 'FW', 'Belgium', 7),
-(345, N'Jose Manuel Flores', 9, NULL, 'GK', 'Brazil', 18),
-(346, N'Mark Gower', 9, NULL, 'DF', 'England', 14),
-(347, N'Daniel Graham', 9, NULL, 'GK', 'England', 5),
-(348, N'Pablo Hernandez', 9, NULL, 'DF', 'Portugal', 13),
-(349, N'Sung Yeung Ki', 9, NULL, 'GK', 'Brazil', 21),
-(350, N'Leroy Lita', 9, NULL, 'FW', 'England', 8),
-(351, N'Michu', 9, NULL, 'MF', 'Spain', 19),
-(352, N'Garry Monk', 9, NULL, 'DF', 'Mexico', 24),
-(353, N'Luke Moore', 9, NULL, 'MF', 'Spain', 2),
-(354, N'Curtis Obeng', 9, NULL, 'MF', 'England', 23),
-(355, N'Wayne Routledge', 9, NULL, 'GK', 'Germany', 1),
-(356, N'Etey Shechter', 9, NULL, 'FW', 'Spain', 17),
-(357, N'Alan Tate', 9, NULL, 'FW', 'Italy', 25),
-(358, N'Neil Taylor', 9, NULL, 'FW', 'Germany', 22),
-(359, N'Gerhard Tremmel', 9, NULL, 'GK', 'England', 3),
-(360, N'Michel Vorm', 9, NULL, 'MF', 'Mexico', 20),
-(361, N'Ashley Williams', 9, NULL, 'DF', 'Spain', 6),
-(362, N'Angel Rangel.', 9, NULL, 'MF', 'Portugal', 12),
-(363, N'Heurelho Gomes', 5, NULL, 'GK', 'Portugal', 9),
-(364, N'Carlo Cudicini', 5, NULL, 'FW', 'England', 15),
-(365, N'Bradley Friedel', 5, NULL, 'FW', 'England', 4),
-(366, N'Hugo Lloris', 5, NULL, 'GK', 'England', 10),
-(367, N'Younes Kaboul', 5, NULL, 'GK', 'Italy', 16),
-(368, N'William Gallas', 5, NULL, 'MF', 'England', 11),
-(369, N'Emmanuel Adebayor', 5, NULL, 'FW', 'Spain', 7),
-(370, N'Jan Vertonghen', 5, NULL, 'MF', 'Spain', 18),
-(371, N'Benoit Assou-Ekotto', 5, NULL, 'GK', 'Spain', 14),
-(372, N'Sandro', 5, NULL, 'DF', 'United States', 5),
-(373, N'Yago Falque', 5, NULL, 'DF', 'Mexico', 13),
-(374, N'Gylfi Sigurdsson', 5, NULL, 'MF', 'England', 21),
-(375, N'Clint Dempsey', 5, NULL, 'GK', 'Spain', 8),
-(376, N'Aaron Lennon', 5, NULL, 'FW', 'England', 19),
-(377, N'Kyle Walker', 5, NULL, 'FW', 'Belgium', 24),
-(378, N'Kyle Naughton', 5, NULL, 'MF', 'Spain', 2),
-(379, N'Michael Dawson', 5, NULL, 'GK', 'Portugal', 23),
-(380, N'Mousa Dembele', 5, NULL, 'DF', 'England', 1),
-(381, N'Thomas Huddlestone', 5, NULL, 'MF', 'England', 17),
-(382, N'Scott Parker', 5, NULL, 'FW', 'Mexico', 25),
-(383, N'Jake Livermore', 5, NULL, 'MF', 'Portugal', 22),
-(384, N'Jermaine Jenas', 5, NULL, 'DF', 'Portugal', 3),
-(385, N'Gareth Bale', 5, NULL, 'DF', 'Spain', 20),
-(386, N'Jermain Defoe', 5, NULL, 'DF', 'Spain', 6),
-(387, N'David Bentley.', 5, NULL, 'FW', 'England', 12),
-(388, N'Christopher Brunt', 8, NULL, 'GK', 'England', 9),
-(389, N'Luke Daniels', 8, NULL, 'FW', 'England', 15),
-(390, N'Craig Dawson', 8, NULL, 'FW', 'England', 4),
-(391, N'Graham Dorrans', 8, NULL, 'MF', 'Spain', 10),
-(392, N'Yassine El Ghanassy', 8, NULL, 'MF', 'Brazil', 16),
-(393, N'Marc-Antoine Fortune', 8, NULL, 'FW', 'England', 11),
-(394, N'Ben Foster', 8, NULL, 'MF', 'Brazil', 7),
-(395, N'Zoltan Gera', 8, NULL, 'DF', 'Netherlands', 18),
-(396, N'Gonzalo Jara', 8, NULL, 'DF', 'England', 14),
-(397, N'Billy Jones', 8, NULL, 'DF', 'Italy', 5),
-(398, N'Shane Long', 8, NULL, 'DF', 'Portugal', 13),
-(399, N'Gareth McAuley', 8, NULL, 'FW', 'England', 21),
-(400, N'James Morrison', 8, NULL, 'FW', 'Belgium', 8),
-(401, N'Youssouf Mulumbu', 8, NULL, 'DF', 'United States', 19),
-(402, N'Glyn Myhill', 8, NULL, 'MF', 'England', 24),
-(403, N'Peter Odemwingie', 8, NULL, 'GK', 'Spain', 2),
-(404, N'Jonas Olsson', 8, NULL, 'DF', 'Mexico', 23),
-(405, N'Goran Popov', 8, NULL, 'MF', 'Mexico', 1),
-(406, N'Steven Reid', 8, NULL, 'GK', 'England', 17),
-(407, N'Liam Ridgewell', 8, NULL, 'DF', 'Italy', 25),
-(408, N'Nils Rosenberg', 8, NULL, 'FW', 'England', 22),
-(409, N'Gabriel Tamas', 8, NULL, 'DF', 'Spain', 3),
-(410, N'Jerome Thomas', 8, NULL, 'DF', 'United States', 20),
-(411, N'Claudio Yacob.', 8, NULL, 'DF', 'England', 6),
-(412, N'Yossi Benayoun', 10, NULL, 'MF', 'Argentina', 12),
-(413, N'Andrew Carroll', 10, NULL, 'DF', 'England', 9),
-(414, N'Carlton Cole', 10, NULL, 'FW', 'Argentina', 15),
-(415, N'James Collins', 10, NULL, 'MF', 'Belgium', 4),
-(416, N'Jack Collison', 10, NULL, 'FW', 'Netherlands', 10),
-(417, N'Guy Demel', 10, NULL, 'MF', 'Portugal', 16),
-(418, N'Mohamed Diame', 10, NULL, 'MF', 'Italy', 11),
-(419, N'Alou Diarra', 10, NULL, 'GK', 'Spain', 7),
-(420, N'Stephen Henderson', 10, NULL, 'GK', 'Spain', 18),
-(421, N'Jussi Jaaskelainen', 10, NULL, 'DF', 'Argentina', 14),
-(422, N'Matthew Jarvis', 10, NULL, 'GK', 'England', 5),
-(423, N'Modibo Maiga', 10, NULL, 'MF', 'England', 13),
-(424, N'George McCartney', 10, NULL, 'GK', 'Netherlands', 21),
-(425, N'Mark Noble', 10, NULL, 'GK', 'Mexico', 8),
-(426, N'Kevin Nolan', 10, NULL, 'MF', 'England', 19),
-(427, N'Joseph O''Brien', 10, NULL, 'FW', 'Italy', 24),
-(428, N'Gary O''Neil', 10, NULL, 'FW', 'Netherlands', 2),
-(429, N'Winston Reid', 10, NULL, 'GK', 'Netherlands', 23),
-(430, N'Jordan Spence', 10, NULL, 'FW', 'Spain', 1),
-(431, N'Matthew Taylor', 10, NULL, 'MF', 'Brazil', 17),
-(432, N'James Tomkins', 10, NULL, 'GK', 'Spain', 25),
-(433, N'Ricardo Vaz Te.', 10, NULL, 'MF', 'Spain', 22),
-(434, N'Ali Al-Habsi', 18, NULL, 'DF', 'Argentina', 3),
-(435, N'Antolin Alcaraz', 18, NULL, 'GK', 'England', 20),
-(436, N'Jean Beausejour', 18, NULL, 'FW', 'Spain', 6),
-(437, N'Mauro Boselli', 18, NULL, 'FW', 'Switzerland', 12),
-(438, N'Emmerson Boyce', 18, NULL, 'GK', 'Argentina', 9),
-(439, N'Gary Caldwell', 18, NULL, 'FW', 'Spain', 15),
-(440, N'Albert Crusat', 18, NULL, 'FW', 'England', 4),
-(441, N'Franco Di Santo', 18, NULL, 'FW', 'Netherlands', 10),
-(442, N'Maynor Figueroa', 18, NULL, 'FW', 'Argentina', 16),
-(443, N'Jordi Gomez', 18, NULL, 'DF', 'Italy', 11),
-(444, N'David Jones', 18, NULL, 'GK', 'England', 7),
-(445, N'Arouna Kone', 18, NULL, 'MF', 'Spain', 18),
-(446, N'Piscu', 18, NULL, 'DF', 'England', 14),
-(447, N'Shaun Maloney', 18, NULL, 'DF', 'Argentina', 5),
-(448, N'James McArthur', 18, NULL, 'FW', 'England', 13),
-(449, N'James McCarthy', 18, NULL, 'GK', 'Italy', 21),
-(450, N'Michael Pollitt', 18, NULL, 'GK', 'Spain', 8),
-(451, N'Ivan Ramis', 18, NULL, 'DF', 'Belgium', 19),
-(452, N'Ronnie Stam', 18, NULL, 'FW', 'Germany', 24),
-(453, N'Ben Watson.', 18, NULL, 'DF', 'Portugal', 2);
+INSERT INTO Player (PlayerId, Fullname, ClubId, DOB, PositionId, Nationality, Number) VALUES
+(1, N'Andrey Arshavin', 4, NULL, 'MF', 'ar', 19),
+(2, N'Mikel Arteta', 4, NULL, 'FW', 'pt', 24),
+(3, N'Santi Cazorla', 4, NULL, 'GK', 'ch', 2),
+(4, N'Marouane Chamakh', 4, NULL, 'GK', 'nl', 23),
+(5, N'Andre Dos Santos', 4, NULL, 'DF', 'ch', 1),
+(6, N'Abou Diaby', 4, NULL, 'MF', 'es', 17),
+(7, N'Johan Djourou', 4, NULL, 'DF', 'es', 25),
+(8, N'Lukasz Fabianski', 4, NULL, 'DF', 'es', 22),
+(9, N'Gervinho', 4, NULL, 'FW', 'br', 3),
+(10, N'Kieran Gibbs', 4, NULL, 'GK', 'es', 20),
+(11, N'Olivier Giroud', 4, NULL, 'FW', 'de', 6),
+(12, N'Laurent Koscielny', 4, NULL, 'GK', 'pt', 12),
+(13, N'Vito Mannone', 4, NULL, 'DF', 'pt', 9),
+(14, N'Per Mertesacker', 4, NULL, 'DF', 'en', 15),
+(15, N'Lukas Podolski', 4, NULL, 'DF', 'br', 4),
+(16, N'Aaron Ramsey', 4, NULL, 'GK', 'en', 10),
+(17, N'Tomas Rosicky', 4, NULL, 'MF', 'es', 16),
+(18, N'Bacary Sagna', 4, NULL, 'FW', 'en', 11),
+(19, N'Sebastien Squillaci', 4, NULL, 'GK', 'it', 7),
+(20, N'Wojciech Szczesny', 4, NULL, 'GK', 'nl', 18),
+(21, N'Thomas Vermaelen', 4, NULL, 'FW', 'mx', 14),
+(22, N'Theo Walcott', 4, NULL, 'MF', 'es', 5),
+(23, N'Craig Eastmond.', 4, NULL, 'DF', 'es', 13),
+(24, N'Gabriel Agbonlahor', 15, NULL, 'GK', 'be', 21),
+(25, N'Marc Albrighton', 15, NULL, 'FW', 'it', 8),
+(26, N'Barry Bannan', 15, NULL, 'DF', 'it', 19),
+(27, N'Darren Bent', 15, NULL, 'FW', 'ch', 24),
+(28, N'Ciaran Clark', 15, NULL, 'FW', 'br', 2),
+(29, N'Fabian Delph', 15, NULL, 'DF', 'en', 23),
+(30, N'Richard Dunne', 15, NULL, 'FW', 'be', 1),
+(31, N'Karim El Ahmadi', 15, NULL, 'FW', 'es', 17),
+(32, N'Shay Given', 15, NULL, 'DF', 'it', 25),
+(33, N'Bradley Guzan', 15, NULL, 'FW', 'nl', 22),
+(34, N'Christopher Herd', 15, NULL, 'FW', 'es', 3),
+(35, N'Brett Holman', 15, NULL, 'FW', 'en', 20),
+(36, N'Alan Hutton', 15, NULL, 'GK', 'nl', 6),
+(37, N'Stephen Ireland', 15, NULL, 'GK', 'it', 12),
+(38, N'Eric Lichaj', 15, NULL, 'GK', 'es', 9),
+(39, N'Matthew Lowton', 15, NULL, 'GK', 'en', 15),
+(40, N'Ashley Westwood', 15, NULL, 'MF', 'nl', 4),
+(41, N'Andrew Marshall', 15, NULL, 'MF', 'ch', 10),
+(42, N'Charles ''Zogbia', 15, NULL, 'DF', 'en', 16),
+(43, N'Stiliyan Petrov', 15, NULL, 'DF', 'it', 11),
+(44, N'Enda Stevens', 15, NULL, 'FW', 'es', 7),
+(45, N'Ron Vlaar', 15, NULL, 'GK', 'es', 18),
+(46, N'Stephen Warnock', 15, NULL, 'GK', 'nl', 14),
+(47, N'Joseph Bennett', 15, NULL, 'MF', 'en', 5),
+(48, N'Christian Benteke.', 15, NULL, 'DF', 'ar', 13),
+(49, N'Petr Cech', 3, NULL, 'MF', 'es', 21),
+(50, N'Branislav Ivanovic', 3, NULL, 'MF', 'us', 8),
+(51, N'Cesar Azpilicueta', 3, NULL, 'MF', 'en', 19),
+(52, N'Ashley Cole', 3, NULL, 'GK', 'it', 24),
+(53, N'David Luiz', 3, NULL, 'MF', 'es', 2),
+(54, N'Ramires', 3, NULL, 'DF', 'pt', 23),
+(55, N'Frank Lampard', 3, NULL, 'DF', 'es', 1),
+(56, N'Fernando Torres', 3, NULL, 'MF', 'pt', 17),
+(57, N'Juan Mata', 3, NULL, 'FW', 'en', 25),
+(58, N'Victor Moses', 3, NULL, 'GK', 'it', 22),
+(59, N'John Obi Mikel', 3, NULL, 'GK', 'en', 3),
+(60, N'Florent Malouda', 3, NULL, 'DF', 'es', 20),
+(61, N'Paulo Ferreira', 3, NULL, 'MF', 'es', 6),
+(62, N'Marko Marin', 3, NULL, 'MF', 'ar', 12),
+(63, N'Ross Turnbull', 3, NULL, 'GK', 'us', 9),
+(64, N'Daniel Sturridge', 3, NULL, 'DF', 'es', 15),
+(65, N'Gary Cahill', 3, NULL, 'GK', 'it', 4),
+(66, N'John Terry', 3, NULL, 'DF', 'de', 10),
+(67, N'Ryan Bertrand', 3, NULL, 'DF', 'br', 16),
+(68, N'Hilario.', 3, NULL, 'FW', 'es', 11),
+(69, N'Victor Anichebe', 6, NULL, 'MF', 'en', 7),
+(70, N'Leighton Baines', 6, NULL, 'GK', 'en', 18),
+(71, N'Darron Gibson', 6, NULL, 'DF', 'ch', 14),
+(72, N'Anthony Hibbert', 6, NULL, 'DF', 'ar', 5),
+(73, N'Philip Jagielka', 6, NULL, 'DF', 'es', 13),
+(74, N'Philip Neville', 6, NULL, 'MF', 'en', 21),
+(75, N'Leon Osman', 6, NULL, 'GK', 'es', 8),
+(76, N'Seamus Coleman', 6, NULL, 'GK', 'es', 19),
+(77, N'Sylvain Distin', 6, NULL, 'DF', 'en', 24),
+(78, N'Marouane Fellaini', 6, NULL, 'FW', 'mx', 2),
+(79, N'Magaye Gueye', 6, NULL, 'GK', 'de', 23),
+(80, N'John Heitinga', 6, NULL, 'DF', 'es', 1),
+(81, N'Timothy Howard', 6, NULL, 'MF', 'it', 17),
+(82, N'Nikica Jelavic', 6, NULL, 'MF', 'es', 25),
+(83, N'Jan Mucha', 6, NULL, 'DF', 'es', 22),
+(84, N'Steven Naismith', 6, NULL, 'DF', 'it', 3),
+(85, N'Steven Pienaar', 6, NULL, 'GK', 'en', 20),
+(86, N'Kevin Mirallas', 6, NULL, 'MF', 'it', 6),
+(87, N'Bryan Oviedo.', 6, NULL, 'DF', 'de', 12),
+(88, N'Mark Schwarzer', 12, NULL, 'DF', 'en', 9),
+(89, N'Csaba Somogyi', 12, NULL, 'FW', 'es', 15),
+(90, N'David Stockdale', 12, NULL, 'GK', 'it', 4),
+(91, N'Neil Etheridge', 12, NULL, 'MF', 'it', 10),
+(92, N'Sascha Riether', 12, NULL, 'DF', 'de', 16),
+(93, N'Stephen Kelly', 12, NULL, 'DF', 'es', 11),
+(94, N'Aaron Hughes', 12, NULL, 'FW', 'es', 7),
+(95, N'Brede Hangeland', 12, NULL, 'DF', 'en', 18),
+(96, N'Philippe Senderos', 12, NULL, 'MF', 'es', 14),
+(97, N'John Arne Riise', 12, NULL, 'MF', 'ch', 5),
+(98, N'Damien Duff', 12, NULL, 'MF', 'en', 13),
+(99, N'Ashkan Dejagah', 12, NULL, 'FW', 'de', 21),
+(100, N'Simon Davies', 12, NULL, 'FW', 'es', 8),
+(101, N'Christopher Baird', 12, NULL, 'GK', 'es', 19),
+(102, N'Steven Sidwell', 12, NULL, 'MF', 'en', 24),
+(103, N'Mahamadou Diarra', 12, NULL, 'DF', 'nl', 2),
+(104, N'Bryan Ruiz', 12, NULL, 'FW', 'es', 23),
+(105, N'Kieran Richardson', 12, NULL, 'MF', 'es', 1),
+(106, N'Mladen Petric', 12, NULL, 'FW', 'en', 17),
+(107, N'Hugo Rodallega', 12, NULL, 'FW', 'ar', 25),
+(108, N'Dimitar Berbatov.', 12, NULL, 'GK', 'be', 22),
+(109, N'Daniel Agger', 7, NULL, 'MF', 'it', 3),
+(110, N'Joe Allen', 7, NULL, 'DF', 'br', 20),
+(111, N'Ossama Assaidi', 7, NULL, 'FW', 'es', 6),
+(112, N'Jamie Carragher', 7, NULL, 'DF', 'en', 12),
+(113, N'Sebastian Coates', 7, NULL, 'GK', 'es', 9),
+(114, N'Joe Cole', 7, NULL, 'DF', 'es', 15),
+(115, N'Doni', 7, NULL, 'GK', 'es', 4),
+(116, N'Stewart Downing', 7, NULL, 'MF', 'es', 10),
+(117, N'Steven Gerrard', 7, NULL, 'FW', 'es', 16),
+(118, N'Peter Gulacsi', 7, NULL, 'FW', 'br', 11),
+(119, N'Jordan Henderson', 7, NULL, 'FW', 'en', 7),
+(120, N'Glen Johnson', 7, NULL, 'FW', 'es', 18),
+(121, N'Bradley Jones', 7, NULL, 'MF', 'mx', 14),
+(122, N'Jose Enrique', 7, NULL, 'FW', 'en', 5),
+(123, N'Martin Kelly', 7, NULL, 'FW', 'mx', 13),
+(124, N'Lucas Leiva', 7, NULL, 'GK', 'en', 21),
+(125, N'Jose Manuel Reina', 7, NULL, 'GK', 'ch', 8),
+(126, N'Nuri Sahin', 7, NULL, 'DF', 'mx', 19),
+(127, N'Martin Skrtel', 7, NULL, 'DF', 'es', 24),
+(128, N'Luis Suarez.', 7, NULL, 'FW', 'es', 2),
+(129, N'Joe Hart', 2, NULL, 'DF', 'ch', 23),
+(130, N'Micah Richards', 2, NULL, 'MF', 'es', 1),
+(131, N'Vincent Kompany', 2, NULL, 'MF', 'es', 17),
+(132, N'Pablo Zabaleta', 2, NULL, 'MF', 'pt', 25),
+(133, N'Joleon Lescott', 2, NULL, 'FW', 'nl', 22),
+(134, N'James Milner', 2, NULL, 'FW', 'es', 3),
+(135, N'Samir Nasri', 2, NULL, 'MF', 'pt', 20),
+(136, N'Edin Dzeko', 2, NULL, 'MF', 'it', 6),
+(137, N'Scott Sinclair', 2, NULL, 'GK', 'es', 12),
+(138, N'Aleksandar Kolarov', 2, NULL, 'GK', 'es', 9),
+(139, N'Sergio Aguero', 2, NULL, 'GK', 'es', 15),
+(140, N'Gareth Barry', 2, NULL, 'MF', 'es', 4),
+(141, N'David Silva', 2, NULL, 'DF', 'ch', 10),
+(142, N'Gael Clichy', 2, NULL, 'MF', 'mx', 16),
+(143, N'Kolo Toure', 2, NULL, 'GK', 'es', 11),
+(144, N'Richard Wright', 2, NULL, 'GK', 'es', 7),
+(145, N'Costel Pantilimon', 2, NULL, 'DF', 'es', 18),
+(146, N'Carlos Tevez', 2, NULL, 'MF', 'it', 14),
+(147, N'Yaya Toure', 2, NULL, 'DF', 'pt', 5),
+(148, N'Maicon', 2, NULL, 'GK', 'it', 13),
+(149, N'Javi Garcia', 2, NULL, 'MF', 'en', 21),
+(150, N'Mario Balotelli.', 2, NULL, 'DF', 'mx', 8),
+(151, N'Anderson', 1, NULL, 'DF', 'ch', 19),
+(152, N'Bebe', 1, NULL, 'DF', 'ar', 24),
+(153, N'Alexander Buttner', 1, NULL, 'MF', 'en', 2),
+(154, N'Michael Carrick', 1, NULL, 'MF', 'de', 23),
+(155, N'Javier Hernandez', 1, NULL, 'MF', 'ch', 1),
+(156, N'Tom Cleverley', 1, NULL, 'GK', 'it', 17),
+(157, N'David De Gea', 1, NULL, 'DF', 'us', 25),
+(158, N'Jonathan Evans', 1, NULL, 'FW', 'it', 22),
+(159, N'Patrice Evra', 1, NULL, 'FW', 'br', 3),
+(160, N'Rio Ferdinand', 1, NULL, 'GK', 'us', 20),
+(161, N'Darren Fletcher', 1, NULL, 'DF', 'it', 6),
+(162, N'Ryan Giggs', 1, NULL, 'DF', 'es', 12),
+(163, N'Shinji Kagawa', 1, NULL, 'GK', 'es', 9),
+(164, N'Anders Lindegaard', 1, NULL, 'DF', 'be', 15),
+(165, N'Nani', 1, NULL, 'MF', 'en', 4),
+(166, N'Rafael da Silva', 1, NULL, 'DF', 'en', 10),
+(167, N'Wayne Rooney', 1, NULL, 'MF', 'nl', 16),
+(168, N'Paul Scholes', 1, NULL, 'FW', 'it', 11),
+(169, N'Chris Smalling', 1, NULL, 'DF', 'es', 7),
+(170, N'Luis Antonio Valencia', 1, NULL, 'GK', 'en', 18),
+(171, N'Robin Van Persie', 1, NULL, 'FW', 'de', 14),
+(172, N'Nemanja Vidic', 1, NULL, 'DF', 'ch', 5),
+(173, N'Daniel Welbeck', 1, NULL, 'FW', 'es', 13),
+(174, N'Ashley Young.', 1, NULL, 'MF', 'es', 21),
+(175, N'Romain Amalfitano', 16, NULL, 'FW', 'pt', 8),
+(176, N'Shola Ameobi', 16, NULL, 'GK', 'nl', 19),
+(177, N'Vurnon Anita', 16, NULL, 'DF', 'en', 24),
+(178, N'Demba Ba', 16, NULL, 'MF', 'es', 2),
+(179, N'Hatem Ben Arfa', 16, NULL, 'GK', 'mx', 23),
+(180, N'Yohan Cabaye', 16, NULL, 'MF', 'be', 1),
+(181, N'Papiss Cisse', 16, NULL, 'GK', 'ar', 17),
+(182, N'Fabricio Coloccini', 16, NULL, 'FW', 'mx', 25),
+(183, N'Robert Elliot', 16, NULL, 'GK', 'be', 22),
+(184, N'Dan Gosling', 16, NULL, 'FW', 'en', 3),
+(185, N'Stephen Harper', 16, NULL, 'MF', 'pt', 20),
+(186, N'Jonas Gutierrez', 16, NULL, 'DF', 'us', 6),
+(187, N'Timothy Krul', 16, NULL, 'FW', 'es', 12),
+(188, N'Sylvain Marveaux', 16, NULL, 'DF', 'mx', 9),
+(189, N'Gabriel Obertan', 16, NULL, 'GK', 'us', 15),
+(190, N'James Perch', 16, NULL, 'GK', 'ar', 4),
+(191, N'Daniel Simpson', 16, NULL, 'MF', 'be', 10),
+(192, N'Ryan Taylor', 16, NULL, 'GK', 'it', 16),
+(193, N'Steven Taylor', 16, NULL, 'MF', 'en', 11),
+(194, N'Cheick Tiote', 16, NULL, 'GK', 'en', 7),
+(195, N'Mike Williamson', 16, NULL, 'DF', 'nl', 18),
+(196, N'Xisco.', 16, NULL, 'DF', 'pt', 14),
+(197, N'Leon Barnett', 11, NULL, 'GK', 'ar', 5),
+(198, N'Sebastian Bassong', 11, NULL, 'MF', 'en', 13),
+(199, N'Elliott Bennett', 11, NULL, 'DF', 'br', 21),
+(200, N'Ryan Bennett', 11, NULL, 'GK', 'ar', 8),
+(201, N'Mark Bunn', 11, NULL, 'FW', 'es', 19),
+(202, N'Jacob Butterfield', 11, NULL, 'MF', 'pt', 24),
+(203, N'David Fox', 11, NULL, 'MF', 'br', 2),
+(204, N'Javier Garrido', 11, NULL, 'FW', 'es', 23),
+(205, N'Grant Holt', 11, NULL, 'FW', 'it', 1),
+(206, N'Wesley Hoolahan', 11, NULL, 'DF', 'es', 17),
+(207, N'Jonathan Howson', 11, NULL, 'MF', 'nl', 25),
+(208, N'Simeon Jackson', 11, NULL, 'DF', 'en', 22),
+(209, N'Bradley Johnson', 11, NULL, 'MF', 'es', 3),
+(210, N'Simon Lappin', 11, NULL, 'FW', 'be', 20),
+(211, N'Chris Martin', 11, NULL, 'FW', 'it', 6),
+(212, N'Russell Martin', 11, NULL, 'FW', 'en', 12),
+(213, N'Steven Morison', 11, NULL, 'FW', 'es', 9),
+(214, N'Anthony Pilkington', 11, NULL, 'GK', 'mx', 15),
+(215, N'John Ruddy', 11, NULL, 'MF', 'be', 4),
+(216, N'Robert Snodgrass', 11, NULL, 'GK', 'en', 10),
+(217, N'Andrew Surman', 11, NULL, 'FW', 'es', 16),
+(218, N'Alexander Tettey', 11, NULL, 'FW', 'es', 11),
+(219, N'Marc Tierney', 11, NULL, 'FW', 'mx', 7),
+(220, N'Michael Turner', 11, NULL, 'GK', 'br', 18),
+(221, N'Steven Whittaker.', 11, NULL, 'FW', 'en', 14),
+(222, N'Robert Green', 20, NULL, 'GK', 'en', 5),
+(223, N'Samba Diakite', 20, NULL, 'GK', 'ar', 13),
+(224, N'Armand Traore', 20, NULL, 'GK', 'de', 21),
+(225, N'Shaun Derry', 20, NULL, 'MF', 'ar', 8),
+(226, N'Anton Ferdinand', 20, NULL, 'MF', 'br', 19),
+(227, N'Clinton Hill', 20, NULL, 'GK', 'es', 24),
+(228, N'Ji-Sung Park', 20, NULL, 'MF', 'nl', 2),
+(229, N'Andrew Johnson', 20, NULL, 'MF', 'es', 23),
+(230, N'Djibril Cisse', 20, NULL, 'MF', 'mx', 1),
+(231, N'Adel Taarabt', 20, NULL, 'GK', 'en', 17),
+(232, N'Bradley Wright-Phillips', 20, NULL, 'GK', 'es', 25),
+(233, N'James Mackie', 20, NULL, 'FW', 'en', 22),
+(234, N'Nedum Onuoha', 20, NULL, 'GK', 'es', 3),
+(235, N'Stephane Mbia', 20, NULL, 'GK', 'es', 20),
+(236, N'Ryan Nelsen', 20, NULL, 'GK', 'pt', 6),
+(237, N'Kieron Dyer', 20, NULL, 'FW', 'it', 12),
+(238, N'Fabio da Silva', 20, NULL, 'GK', 'es', 9),
+(239, N'Hogan Ephraim', 20, NULL, 'DF', 'es', 15),
+(240, N'David Wayne Hoilett', 20, NULL, 'MF', 'es', 4),
+(241, N'Brian Murphy', 20, NULL, 'FW', 'it', 10),
+(242, N'Robert Zamora', 20, NULL, 'GK', 'be', 16),
+(243, N'Julio Cesar', 20, NULL, 'GK', 'en', 11),
+(244, N'Alejandro Faurlin', 20, NULL, 'MF', 'be', 7),
+(245, N'Esteban Granero', 20, NULL, 'FW', 'pt', 18),
+(246, N'Jose Bosingwa.', 20, NULL, 'FW', 'ar', 14),
+(247, N'Simon Church', 19, NULL, 'GK', 'es', 5),
+(248, N'Shaun Cummings', 19, NULL, 'MF', 'ar', 13),
+(249, N'Christopher Gunter', 19, NULL, 'MF', 'es', 21),
+(250, N'Danny Guthrie', 19, NULL, 'GK', 'be', 8),
+(251, N'Ian Harte', 19, NULL, 'DF', 'de', 19),
+(252, N'Jem Karacan', 19, NULL, 'GK', 'de', 24),
+(253, N'Adam Le Fondre', 19, NULL, 'DF', 'en', 2),
+(254, N'Mikele Leigertwood', 19, NULL, 'MF', 'en', 23),
+(255, N'Joel McAnuff', 19, NULL, 'MF', 'pt', 1),
+(256, N'Alex McCarthy', 19, NULL, 'DF', 'es', 17),
+(257, N'Garath McCleary', 19, NULL, 'MF', 'es', 25),
+(258, N'Adrian Mariappa', 19, NULL, 'GK', 'us', 22),
+(259, N'Alexander Pearce', 19, NULL, 'DF', 'en', 3),
+(260, N'Jason Roberts', 19, NULL, 'MF', 'en', 20),
+(261, N'Thomas Robson-Kanu', 19, NULL, 'DF', 'be', 6),
+(262, N'Nicholas Shorey', 19, NULL, 'GK', 'es', 12),
+(263, N'Jay Tabb', 19, NULL, 'GK', 'de', 9),
+(264, N'Stuart Taylor', 19, NULL, 'DF', 'pt', 15),
+(265, N'Mikkel Andersen', 19, NULL, 'MF', 'es', 4),
+(266, N'Adam Federici', 19, NULL, 'FW', 'es', 10),
+(267, N'Kaspars Gorkss', 19, NULL, 'GK', 'pt', 16),
+(268, N'Brynjar Gunnarsson', 19, NULL, 'DF', 'de', 11),
+(269, N'Noel Hunt', 19, NULL, 'MF', 'en', 7),
+(270, N'Jimmy Kebe', 19, NULL, 'GK', 'en', 18),
+(271, N'Pavel Pogrebnyak.', 19, NULL, 'MF', 'ar', 14),
+(272, N'Daniel Butterfield', 14, NULL, 'GK', 'mx', 5),
+(273, N'Richard Chaplow', 14, NULL, 'MF', 'mx', 13),
+(274, N'Jack Cork', 14, NULL, 'MF', 'en', 21),
+(275, N'Kelvin Davis', 14, NULL, 'GK', 'es', 8),
+(276, N'Steven Davis', 14, NULL, 'GK', 'it', 19),
+(277, N'Steve De Ridder', 14, NULL, 'MF', 'mx', 24),
+(278, N'Ryan Dickson', 14, NULL, 'GK', 'es', 2),
+(279, N'Guilherme Do Prado', 14, NULL, 'FW', 'be', 23),
+(280, N'Jose Fonte', 14, NULL, 'DF', 'ar', 1),
+(281, N'Jonathan Forte', 14, NULL, 'GK', 'en', 17),
+(282, N'Daniel Fox', 14, NULL, 'MF', 'de', 25),
+(283, N'Jos Hooiveld', 14, NULL, 'DF', 'be', 22),
+(284, N'Adam Lallana', 14, NULL, 'GK', 'be', 3),
+(285, N'Rickie Lambert', 14, NULL, 'GK', 'us', 20),
+(286, N'Tadanari Lee', 14, NULL, 'GK', 'be', 6),
+(287, N'Emmanuel Mayuka', 14, NULL, 'DF', 'es', 12),
+(288, N'Jason Puncheon', 14, NULL, 'GK', 'mx', 9),
+(289, N'Gaston Ramirez', 14, NULL, 'DF', 'ar', 15),
+(290, N'Frazer Richardson', 14, NULL, 'MF', 'ch', 4),
+(291, N'Jay Rodriguez', 14, NULL, 'MF', 'es', 10),
+(292, N'Morgan Schneiderlin', 14, NULL, 'MF', 'mx', 16),
+(293, N'Daniel Seaborne', 14, NULL, 'MF', 'es', 11),
+(294, N'Maya Yoshida.', 14, NULL, 'FW', 'us', 7),
+(295, N'Charlie Adam', 13, NULL, 'MF', 'nl', 18),
+(296, N'Asmir Begovic', 13, NULL, 'GK', 'de', 14),
+(297, N'Geoff Cameron', 13, NULL, 'DF', 'en', 5),
+(298, N'Peter Crouch', 13, NULL, 'FW', 'ch', 13),
+(299, N'Rory Delap', 13, NULL, 'FW', 'es', 21),
+(300, N'Maurice Edu', 13, NULL, 'FW', 'de', 8),
+(301, N'Matthew Etherington', 13, NULL, 'DF', 'it', 19),
+(302, N'Robert Huth', 13, NULL, 'MF', 'es', 24),
+(303, N'Cameron Jerome', 13, NULL, 'GK', 'ch', 2),
+(304, N'Kenwyne Jones', 13, NULL, 'GK', 'pt', 23),
+(305, N'Michael Kightly', 13, NULL, 'MF', 'nl', 1),
+(306, N'Carlo Nash', 13, NULL, 'DF', 'it', 17),
+(307, N'Steven N’Zonzi', 13, NULL, 'MF', 'it', 25),
+(308, N'Michael Owen', 13, NULL, 'DF', 'pt', 22),
+(309, N'Wilson Palacios', 13, NULL, 'MF', 'es', 3),
+(310, N'Jermaine Pennant', 13, NULL, 'DF', 'es', 20),
+(311, N'Ryan Shawcross', 13, NULL, 'DF', 'es', 6),
+(312, N'Ryan Shotton', 13, NULL, 'GK', 'pt', 12),
+(313, N'Thomas Sorensen', 13, NULL, 'MF', 'es', 9),
+(314, N'Matthew Upson', 13, NULL, 'MF', 'es', 15),
+(315, N'Jonathan Walters', 13, NULL, 'MF', 'en', 4),
+(316, N'Glenn Whelan', 13, NULL, 'FW', 'us', 10),
+(317, N'Dean Whitehead', 13, NULL, 'FW', 'en', 16),
+(318, N'Andy Wilkinson', 13, NULL, 'FW', 'mx', 11),
+(319, N'Marc Wilson.', 13, NULL, 'FW', 'us', 7),
+(320, N'Phillip Bardsley', 17, NULL, 'DF', 'en', 18),
+(321, N'Titus Bramble', 17, NULL, 'FW', 'es', 14),
+(322, N'Wesley Brown', 17, NULL, 'DF', 'pt', 5),
+(323, N'Frazier Campbell', 17, NULL, 'DF', 'it', 13),
+(324, N'Lee Cattermole', 17, NULL, 'DF', 'pt', 21),
+(325, N'Jack Colback', 17, NULL, 'DF', 'en', 8),
+(326, N'Carlos Cuellar', 17, NULL, 'GK', 'nl', 19),
+(327, N'Steven Fletcher', 17, NULL, 'FW', 'es', 24),
+(328, N'Craig Gardner', 17, NULL, 'DF', 'us', 2),
+(329, N'Adam Johnson', 17, NULL, 'FW', 'en', 23),
+(330, N'Matthew Kilgallon', 17, NULL, 'FW', 'mx', 1),
+(331, N'Sebastian Larsson', 17, NULL, 'FW', 'en', 17),
+(332, N'James McClean', 17, NULL, 'MF', 'en', 25),
+(333, N'David Meyler', 17, NULL, 'FW', 'ar', 22),
+(334, N'Simon Mignolet', 17, NULL, 'FW', 'it', 3),
+(335, N'John O''Shea', 17, NULL, 'MF', 'ch', 20),
+(336, N'Daniel Rose', 17, NULL, 'DF', 'en', 6),
+(337, N'Louis Saha', 17, NULL, 'GK', 'us', 12),
+(338, N'Stephane Sessegnon', 17, NULL, 'FW', 'en', 9),
+(339, N'David Vaughan', 17, NULL, 'FW', 'it', 15),
+(340, N'Keiren Westwood.', 17, NULL, 'GK', 'nl', 4),
+(341, N'Germaine Agustien', 9, NULL, 'MF', 'es', 10),
+(342, N'Leon Britton', 9, NULL, 'FW', 'mx', 16),
+(343, N'Jonathan De Guzman', 9, NULL, 'GK', 'it', 11),
+(344, N'Nathan Dyer', 9, NULL, 'FW', 'be', 7),
+(345, N'Jose Manuel Flores', 9, NULL, 'GK', 'br', 18),
+(346, N'Mark Gower', 9, NULL, 'DF', 'en', 14),
+(347, N'Daniel Graham', 9, NULL, 'GK', 'en', 5),
+(348, N'Pablo Hernandez', 9, NULL, 'DF', 'pt', 13),
+(349, N'Sung Yeung Ki', 9, NULL, 'GK', 'br', 21),
+(350, N'Leroy Lita', 9, NULL, 'FW', 'en', 8),
+(351, N'Michu', 9, NULL, 'MF', 'es', 19),
+(352, N'Garry Monk', 9, NULL, 'DF', 'mx', 24),
+(353, N'Luke Moore', 9, NULL, 'MF', 'es', 2),
+(354, N'Curtis Obeng', 9, NULL, 'MF', 'en', 23),
+(355, N'Wayne Routledge', 9, NULL, 'GK', 'de', 1),
+(356, N'Etey Shechter', 9, NULL, 'FW', 'es', 17),
+(357, N'Alan Tate', 9, NULL, 'FW', 'it', 25),
+(358, N'Neil Taylor', 9, NULL, 'FW', 'de', 22),
+(359, N'Gerhard Tremmel', 9, NULL, 'GK', 'en', 3),
+(360, N'Michel Vorm', 9, NULL, 'MF', 'mx', 20),
+(361, N'Ashley Williams', 9, NULL, 'DF', 'es', 6),
+(362, N'Angel Rangel.', 9, NULL, 'MF', 'pt', 12),
+(363, N'Heurelho Gomes', 5, NULL, 'GK', 'pt', 9),
+(364, N'Carlo Cudicini', 5, NULL, 'FW', 'en', 15),
+(365, N'Bradley Friedel', 5, NULL, 'FW', 'en', 4),
+(366, N'Hugo Lloris', 5, NULL, 'GK', 'en', 10),
+(367, N'Younes Kaboul', 5, NULL, 'GK', 'it', 16),
+(368, N'William Gallas', 5, NULL, 'MF', 'en', 11),
+(369, N'Emmanuel Adebayor', 5, NULL, 'FW', 'es', 7),
+(370, N'Jan Vertonghen', 5, NULL, 'MF', 'es', 18),
+(371, N'Benoit Assou-Ekotto', 5, NULL, 'GK', 'es', 14),
+(372, N'Sandro', 5, NULL, 'DF', 'us', 5),
+(373, N'Yago Falque', 5, NULL, 'DF', 'mx', 13),
+(374, N'Gylfi Sigurdsson', 5, NULL, 'MF', 'en', 21),
+(375, N'Clint Dempsey', 5, NULL, 'GK', 'es', 8),
+(376, N'Aaron Lennon', 5, NULL, 'FW', 'en', 19),
+(377, N'Kyle Walker', 5, NULL, 'FW', 'be', 24),
+(378, N'Kyle Naughton', 5, NULL, 'MF', 'es', 2),
+(379, N'Michael Dawson', 5, NULL, 'GK', 'pt', 23),
+(380, N'Mousa Dembele', 5, NULL, 'DF', 'en', 1),
+(381, N'Thomas Huddlestone', 5, NULL, 'MF', 'en', 17),
+(382, N'Scott Parker', 5, NULL, 'FW', 'mx', 25),
+(383, N'Jake Livermore', 5, NULL, 'MF', 'pt', 22),
+(384, N'Jermaine Jenas', 5, NULL, 'DF', 'pt', 3),
+(385, N'Gareth Bale', 5, NULL, 'DF', 'es', 20),
+(386, N'Jermain Defoe', 5, NULL, 'DF', 'es', 6),
+(387, N'David Bentley.', 5, NULL, 'FW', 'en', 12),
+(388, N'Christopher Brunt', 8, NULL, 'GK', 'en', 9),
+(389, N'Luke Daniels', 8, NULL, 'FW', 'en', 15),
+(390, N'Craig Dawson', 8, NULL, 'FW', 'en', 4),
+(391, N'Graham Dorrans', 8, NULL, 'MF', 'es', 10),
+(392, N'Yassine El Ghanassy', 8, NULL, 'MF', 'br', 16),
+(393, N'Marc-Antoine Fortune', 8, NULL, 'FW', 'en', 11),
+(394, N'Ben Foster', 8, NULL, 'MF', 'br', 7),
+(395, N'Zoltan Gera', 8, NULL, 'DF', 'nl', 18),
+(396, N'Gonzalo Jara', 8, NULL, 'DF', 'en', 14),
+(397, N'Billy Jones', 8, NULL, 'DF', 'it', 5),
+(398, N'Shane Long', 8, NULL, 'DF', 'pt', 13),
+(399, N'Gareth McAuley', 8, NULL, 'FW', 'en', 21),
+(400, N'James Morrison', 8, NULL, 'FW', 'be', 8),
+(401, N'Youssouf Mulumbu', 8, NULL, 'DF', 'us', 19),
+(402, N'Glyn Myhill', 8, NULL, 'MF', 'en', 24),
+(403, N'Peter Odemwingie', 8, NULL, 'GK', 'es', 2),
+(404, N'Jonas Olsson', 8, NULL, 'DF', 'mx', 23),
+(405, N'Goran Popov', 8, NULL, 'MF', 'mx', 1),
+(406, N'Steven Reid', 8, NULL, 'GK', 'en', 17),
+(407, N'Liam Ridgewell', 8, NULL, 'DF', 'it', 25),
+(408, N'Nils Rosenberg', 8, NULL, 'FW', 'en', 22),
+(409, N'Gabriel Tamas', 8, NULL, 'DF', 'es', 3),
+(410, N'Jerome Thomas', 8, NULL, 'DF', 'us', 20),
+(411, N'Claudio Yacob.', 8, NULL, 'DF', 'en', 6),
+(412, N'Yossi Benayoun', 10, NULL, 'MF', 'ar', 12),
+(413, N'Andrew Carroll', 10, NULL, 'DF', 'en', 9),
+(414, N'Carlton Cole', 10, NULL, 'FW', 'ar', 15),
+(415, N'James Collins', 10, NULL, 'MF', 'be', 4),
+(416, N'Jack Collison', 10, NULL, 'FW', 'nl', 10),
+(417, N'Guy Demel', 10, NULL, 'MF', 'pt', 16),
+(418, N'Mohamed Diame', 10, NULL, 'MF', 'it', 11),
+(419, N'Alou Diarra', 10, NULL, 'GK', 'es', 7),
+(420, N'Stephen Henderson', 10, NULL, 'GK', 'es', 18),
+(421, N'Jussi Jaaskelainen', 10, NULL, 'DF', 'ar', 14),
+(422, N'Matthew Jarvis', 10, NULL, 'GK', 'en', 5),
+(423, N'Modibo Maiga', 10, NULL, 'MF', 'en', 13),
+(424, N'George McCartney', 10, NULL, 'GK', 'nl', 21),
+(425, N'Mark Noble', 10, NULL, 'GK', 'mx', 8),
+(426, N'Kevin Nolan', 10, NULL, 'MF', 'en', 19),
+(427, N'Joseph O''Brien', 10, NULL, 'FW', 'it', 24),
+(428, N'Gary O''Neil', 10, NULL, 'FW', 'nl', 2),
+(429, N'Winston Reid', 10, NULL, 'GK', 'nl', 23),
+(430, N'Jordan Spence', 10, NULL, 'FW', 'es', 1),
+(431, N'Matthew Taylor', 10, NULL, 'MF', 'br', 17),
+(432, N'James Tomkins', 10, NULL, 'GK', 'es', 25),
+(433, N'Ricardo Vaz Te.', 10, NULL, 'MF', 'es', 22),
+(434, N'Ali Al-Habsi', 18, NULL, 'DF', 'ar', 3),
+(435, N'Antolin Alcaraz', 18, NULL, 'GK', 'en', 20),
+(436, N'Jean Beausejour', 18, NULL, 'FW', 'es', 6),
+(437, N'Mauro Boselli', 18, NULL, 'FW', 'ch', 12),
+(438, N'Emmerson Boyce', 18, NULL, 'GK', 'ar', 9),
+(439, N'Gary Caldwell', 18, NULL, 'FW', 'es', 15),
+(440, N'Albert Crusat', 18, NULL, 'FW', 'en', 4),
+(441, N'Franco Di Santo', 18, NULL, 'FW', 'nl', 10),
+(442, N'Maynor Figueroa', 18, NULL, 'FW', 'ar', 16),
+(443, N'Jordi Gomez', 18, NULL, 'DF', 'it', 11),
+(444, N'David Jones', 18, NULL, 'GK', 'en', 7),
+(445, N'Arouna Kone', 18, NULL, 'MF', 'es', 18),
+(446, N'Piscu', 18, NULL, 'DF', 'en', 14),
+(447, N'Shaun Maloney', 18, NULL, 'DF', 'ar', 5),
+(448, N'James McArthur', 18, NULL, 'FW', 'en', 13),
+(449, N'James McCarthy', 18, NULL, 'GK', 'it', 21),
+(450, N'Michael Pollitt', 18, NULL, 'GK', 'es', 8),
+(451, N'Ivan Ramis', 18, NULL, 'DF', 'be', 19),
+(452, N'Ronnie Stam', 18, NULL, 'FW', 'de', 24),
+(453, N'Ben Watson.', 18, NULL, 'DF', 'pt', 2);
 SET IDENTITY_INSERT Player OFF;
 GO
 -- --------------------------------------------------------
-
 --
 -- Table structure for table Stadium
 --
-
-CREATE TABLE Stadium (
-  StadiumId INT NOT NULL IDENTITY(1, 1),
-  StadiumName NVARCHAR(64) NOT NULL,
-  City NVARCHAR(64) NOT NULL,
-  YearOfBeginning SMALLINT DEFAULT NULL
-);
 GO
 SET IDENTITY_INSERT Stadium ON;
 INSERT INTO Stadium (StadiumId, StadiumName, City, YearOfBeginning) VALUES
@@ -11723,138 +11996,3 @@ INSERT INTO Stadium (StadiumId, StadiumName, City, YearOfBeginning) VALUES
 (20, N'Stadium of Light', N'Stadium of', NULL);
 SET IDENTITY_INSERT Stadium OFF;
 GO
-
-Create proc GetCoaches
-As
-	Select * from Coach;
-go
-
-Create proc AddCoach
-(
-	@Fullname nvarchar(128),
-	@Yearofbirth smallint,
-	@Nationality nvarchar(64)
-)
-as
-	insert into Coach (Fullname,YearOfBirth,Nationality) values (@Fullname,@Yearofbirth,@Nationality);
-go
-
-create proc Detele(@id int)
-as
-	delete from Coach where CoachId=@id;
-go
-
-create proc GetCoachById(@id int)
-as
-	select * from Coach where CoachId=@id;
-go
-
-create proc EditCoach
-(
-	@id int,
-	@Fullname nvarchar(128),
-	@Yearofbirth smallint,
-	@Nationality nvarchar(64)
-)
-as
-	update Coach set Fullname=@Fullname,YearOfBirth = @Yearofbirth,Nationality=@Nationality where CoachId=@id;
-go
-
-create proc DeleteCoaches(@p nvarchar(64))
-as
-	begin
-		declare @sql nvarchar(128) = 'DELETE FROM Coach WHERE CoachId IN (' + @p + ')';
-		exec(@sql);
-	end
-go
-
-create proc SeachCoach(@q nvarchar(32))
-as
-	select * from Coach where Fullname like @q;
-go
-
-create proc GetStadiums
-as
-	select * from Stadium;
-go
-
-create proc GetStadiumById(@id int)
-as
-	select * from Stadium where StadiumId=@id;
-go
-
--- cho phep @YearOfBeginning = null khi khong nhap gia tri tren view.
-alter proc AddStadium
-(
-	@Name nvarchar(64),
-	@City nvarchar(64),
-	@YearOfBeginning smallint=NULL
-)
-as
-	insert into Stadium(StadiumName,City,YearOfBeginning) values (@Name,@City,@YearOfBeginning);
-go
-
-create proc DeleteStadium(@id int)
-as
-	delete from Stadium where StadiumId=@id ;
-go
-
-Alter proc GetClubs
-as
-	select Club.*, StadiumName, Fullname from Club join Stadium on Club.StadiumId = Stadium.StadiumId
-	join Coach on Club.CoachId = Coach.CoachId; 
-go
-
-create proc AddClub
-(
-  @Name NVARCHAR(128),
-  @ShortName CHAR(3),
-  @StadiumId INT,
-  @CoachId INT,
-  @LogoUrl NVARCHAR(128) = null
-)
-as
-	insert into Club(ClubName,ShortName,CoachId,StadiumId,LogoUrl) values (@Name,@ShortName,@CoachId,@StadiumId,@LogoUrl);
-go
-
-create proc GetClubById(@Id int)
-as
-	select * from Club where ClubId = @Id;
-go
-
-Create proc EditClub
-(
-  @Id int,
-  @Name NVARCHAR(128),
-  @ShortName CHAR(3),
-  @StadiumId INT,
-  @CoachId INT,
-  @LogoUrl NVARCHAR(128) = null
-)
-as
- 	update Club set ClubName=@Name,ShortName = @ShortName,StadiumId=@StadiumId,CoachId=@CoachId,LogoUrl=@LogoUrl where ClubId=@Id;
-go
-
-exec EditClub @Id=20,@Name=N'Queens Park Rangers1111',@ShortName=N'QPR',@StadiumId=32,@CoachId=2,@LogoUrl=default
-
-select * from Club;
--- Tao mot thu tuc search clubs, input co the null or not null 
-alter proc SearchClubs
-(
-	@Clubname nvarchar(64) = NULL,
-	@ShortName nvarchar(32) = null,
-	@StadiumId int = null,
-	@CoachId int = null
-)
-as
-begin
-	select * from Club join Coach on Club.CoachId = Coach.CoachId
-						join Stadium on Club.StadiumId = Stadium.StadiumId
-	where 
-		(@StadiumId is NULL or Stadium.StadiumId = @StadiumId) and
-		(@ShortName is null or ShortName = @ShortName) and
-		(@CoachId is null or Coach.CoachId = @CoachId) and
-		(@Clubname is null or ClubName like '%' + @Clubname + '%')		 
-end
-go
-exec SearchClubs @Clubname=default,@ShortName=default,@StadiumId=default,@CoachId=2

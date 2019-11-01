@@ -1,0 +1,56 @@
+﻿@model List<Player>
+@{
+    ViewData["Title"] = "Search";
+}
+
+<h1>Search</h1>
+@{
+    int id = ViewContext.RouteData.Values["id"] != null ? Convert.ToInt32(ViewContext.RouteData.Values["id"]) : 1;
+}
+<form action="/player/search">
+    <input type="text" name="q" value="@Context.Request.Query["q"]" placeholder="Search..."/>
+    <button type="submit"><i class="fa fa-search"></i>Search</button>
+</form>
+<ul class="pagination">
+    @for (int i = 1; i <= ViewBag.page; i++)
+    {
+        <li class="page-item"><a class="page-link" href="/player/search/@i?q=@Context.Request.Query["q"]">@i</a></li>
+    }
+</ul>
+<script type="text/javascript">
+    var a = document.getElementsByClassName("page-item")
+    a[@(id-1)].className="page-item active";
+</script>
+<table class="table table-bordered">
+    <tr>
+        <th>SrNo</th>
+        <th>Full Name</th>
+        <th>Club Name</th>
+        <th>Country</th>
+        <th>Number</th>
+        <th>Position</th>
+        <th>Date of birth</th>
+    </tr>
+    @foreach (var item in Model)
+    {
+        <tr>
+            <td>@(Model.IndexOf(item) + 1)</td>
+            <td>@item.Fullname</td>
+            <td>@item.ClubName</td>
+            <td>@item.CountryName</td>
+            <td>@item.Number</td>
+            <td>@item.PositionName</td>
+            <td>@string.Format("{0:dd/MM/yyyy}", item.DOB)</td>
+            <td>
+                <a href="/player/edit/@item.PlayerId">
+                    <i class="fas fa-edit"></i>
+                </a>
+            </td>
+            <td>
+                <a href="/player/delete/@item.PlayerId">
+                    <i class="fas fa-trash"></i>
+                </a>
+            </td>
+        </tr>
+    }
+</table>

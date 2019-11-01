@@ -1,0 +1,49 @@
+﻿@addTagHelper *, Microsoft.AspNetCore.Mvc.TagHelpers
+@model Player
+@{
+    ViewData["Title"] = "Edit";
+}
+
+<h1>Edit</h1>
+<form method="post">
+    <input type="hidden" asp-for="PlayerId"  />
+    <div>
+        <label asp-for="Fullname"></label>
+        <div>
+            <input type="text" asp-for="Fullname" />
+        </div>
+    </div>
+    <div>
+        <label asp-for="Number"></label>
+        <div>
+            <input type="text" asp-for="Number" />
+        </div>
+    </div>
+    <div>
+        <label asp-for="ClubName"></label>
+        <div>
+            <select asp-for="ClubId" asp-items="@ViewBag.clubs"></select>
+        </div>
+    </div>
+    <div>
+        <label asp-for="PositionName"></label>
+        <div>
+            <select asp-for="PositionId" asp-items="@ViewBag.positions"></select>
+        </div>
+    </div>
+    <div>
+        <label asp-for="Nationality"></label>
+        <div>
+            <select asp-for="Nationality" asp-items="@ViewBag.countries"></select>
+        </div>
+    </div>
+    <div>
+        <label asp-for="DOB"></label>
+        <div>
+            <input type="date" asp-for="DOB" />
+        </div>
+    </div>
+    <div>
+        <button>Save</button>
+    </div>
+</form>
